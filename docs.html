@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lillet — 4613B library docs</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #f0f0f0; --card: #f7f7f7; --line: #d0d0d0;
+    --text: #000000; --dim: #444444; --faint: #6b6b6b;
+    --accent: #000000; --green: #555555; --amber: #808080; --red: #000000;
+    --code-bg: #eeeeee; --mark: #000000;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.55 system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+  code, pre, .sig, .kbd {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* layout */
+  .wrap { display: flex; min-height: 100vh; }
+  nav {
+    width: 240px; flex: 0 0 240px; background: var(--panel);
+    border-right: 1px solid var(--line); padding: 18px 14px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  main { flex: 1; min-width: 0; padding: 26px 34px 80px; max-width: 1040px; }
+
+  /* nav */
+  .logo { font-size: 20px; font-weight: 700; color: var(--accent); letter-spacing: .5px; }
+  .logo small { color: var(--faint); font-weight: 400; font-size: 11px; display: block; }
+  nav h4 { margin: 18px 0 6px; font-size: 10px; text-transform: uppercase;
+           letter-spacing: 1.2px; color: var(--faint); }
+  nav a.nl { display: block; padding: 3px 8px; border-radius: 5px; color: var(--dim); font-size: 13px; }
+  nav a.nl:hover { background: var(--card); color: var(--text); text-decoration: none; }
+  nav a.nl-sub { padding-left: 20px; font-size: 12px; color: var(--faint); }
+
+  /* search */
+  .searchbar { position: sticky; top: 0; z-index: 5; background: var(--bg);
+               padding: 4px 0 12px; }
+  #q {
+    width: 100%; padding: 10px 14px; font-size: 15px; color: var(--text);
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; outline: none;
+  }
+  #q:focus { border-color: var(--accent); }
+  .qhint { color: var(--text); font-size: 11px; margin-top: 5px; }
+  .kbd { background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+         padding: 0 5px; font-size: 11px; }
+  #count { color: var(--text); font-size: 12px; margin: 4px 0 0; display: none; }
+
+  /* sections + cards */
+  section { margin-top: 34px; }
+  section > h2 { font-size: 21px; color: var(--accent); border-bottom: 1px solid var(--line);
+                 padding-bottom: 8px; margin-bottom: 14px; }
+  section > h3 { font-size: 16px; margin: 22px 0 8px; color: var(--text); }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 9px;
+    padding: 13px 16px; margin: 10px 0;
+  }
+  .sig { color: var(--accent); font-size: 13.5px; font-weight: 600; word-break: break-word; }
+  .sig .ns { color: var(--text); font-weight: 400; }
+  .card p { color: var(--text); margin-top: 6px; }
+  .card p strong { color: var(--text); }
+  .tag { display: inline-block; font-size: 10px; padding: 1px 8px; border-radius: 10px;
+         background: var(--code-bg); color: var(--text); border: 1px solid var(--line);
+         margin-left: 8px; vertical-align: 2px; }
+  .inc { color: var(--text); font-size: 11.5px; margin: 2px 0 8px; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+        padding: 12px 14px; overflow-x: auto; font-size: 12.5px; line-height: 1.5;
+        color: var(--text); margin: 8px 0; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  pre code { padding: 0; background: none; }
+
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--panel); color: var(--text); font-weight: 600; }
+  td { color: var(--text); }
+  td code { white-space: nowrap; }
+  .tblwrap { overflow-x: auto; }
+
+  .steps li { margin: 8px 0 8px 18px; color: var(--text); }
+  .steps li strong { color: var(--text); }
+  .note { border-left: 3px solid var(--faint); padding: 8px 12px; background: var(--panel);
+          border-radius: 0 8px 8px 0; color: var(--text); margin: 10px 0; }
+  .warn { border-left: 4px solid var(--red); }
+  .good { border-left-style: dashed; border-left-color: var(--green); }
+  .hidden { display: none; }
+  mark { background: var(--mark); color: #fff; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <div class="logo">lillet<small>4613B Override · localization + motion library</small></div>
+  <h4>Start here</h4>
+  <a class="nl" href="#overview">Overview</a>
+  <a class="nl" href="#getting-started">Getting started</a>
+  <h4>Tuning</h4>
+  <a class="nl" href="#tuning">Tuning guide (in order)</a>
+  <a class="nl" href="#tune-ports">1 · Ports &amp; directions</a>
+  <a class="nl" href="#tune-tpi">2 · Tracking wheel / TPI</a>
+  <a class="nl" href="#tune-imu">3 · IMU</a>
+  <a class="nl" href="#tune-dist">4 · Distance sensors</a>
+  <a class="nl" href="#tune-mcl">5 · Particle filter</a>
+  <a class="nl" href="#tune-motion">6 · Motion controller</a>
+  <a class="nl" href="#tune-curve">7 · Driver curve</a>
+  <a class="nl" href="#tune-telemetry">8 · Live telemetry</a>
+  <h4>Reference</h4>
+  <a class="nl" href="#namespaces">Namespaces</a>
+  <a class="nl" href="#config">All parameters</a>
+  <a class="nl" href="#files">Files</a>
+  <a class="nl" href="#lemlib">LemLib → lillet map</a>
+  <a class="nl" href="#sim">Simulator &amp; tests</a>
+  <h4>API Headers</h4>
+  <a class="nl" href="#api">Headers index</a>
+  <a class="nl nl-sub" href="#hdr-chassis">chassis.hpp</a>
+  <a class="nl nl-sub" href="#hdr-chassis-config">chassis_config.hpp</a>
+  <a class="nl nl-sub" href="#hdr-pid">pid.hpp</a>
+  <a class="nl nl-sub" href="#hdr-exit-condition">exit_condition.hpp</a>
+  <a class="nl nl-sub" href="#hdr-drive-curve">drive_curve.hpp</a>
+  <a class="nl nl-sub" href="#hdr-types">types.hpp</a>
+  <a class="nl nl-sub" href="#hdr-field-model">field_model.hpp</a>
+  <a class="nl nl-sub" href="#hdr-particle-filter">particle_filter.hpp</a>
+  <a class="nl nl-sub" href="#hdr-localization">localization.hpp</a>
+  <a class="nl nl-sub" href="#hdr-telemetry">telemetry.hpp</a>
+  <a class="nl nl-sub" href="#hdr-selector">selector.hpp</a>
+  <a class="nl nl-sub" href="#hdr-robot-config">robot_config.hpp</a>
+</nav>
+
+<main>
+  <div class="searchbar">
+    <input id="q" type="search" placeholder="Search functions, parameters, tuning topics…  (press / to focus)">
+    <div class="qhint">Try: <code>moveToPose</code> · <code>TPI</code> · <code>base reading</code> · <code>overshoot</code> · <code>kidnap</code> · <code>sigma</code></div>
+    <div id="count"></div>
+  </div>
+
+  <!-- ═════════════════════════ OVERVIEW ═════════════════════════ -->
+  <section id="overview" data-sec>
+    <h2>Overview</h2>
+    <div class="card" data-k="overview architecture amcl monte carlo odometry imu distance sensors particle filter lillet">
+      <p><strong>lillet</strong> is 4613B's custom PROS library: AMCL Monte-Carlo localization
+      (200-particle filter fusing tracking-wheel odometry, IMU heading, and four distance sensors
+      against a ray-cast field model) plus a boomerang-carrot motion controller with a
+      LemLib-compatible API. Everything was designed and tuned in the browser simulator first;
+      the JS and C++ are 1:1 ports of each other.</p>
+<pre>simulator/index.html      design + tune + validate everything here first
+simulator/sim_tests.mjs   automated tests (node sim_tests.mjs) — the behavioural oracle
+include/robot_config.hpp  ★ THE tuning file — every parameter lives here
+include/ + src/           localization/ (Localizer, ParticleFilter, FieldModel)
+                          motion/       (Chassis, PID, ExitCondition, ExpoDriveCurve)
+src/main.cpp              wiring + autonomous path (paste simulator export here)</pre>
+      <p>Coordinates: origin at field centre, +x right, +y north, heading <em>clockwise from
+      north</em>. Positions in inches, sensor distances in mm, angles in radians internally /
+      degrees at the API surface.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ GETTING STARTED ═════════════════════════ -->
+  <section id="getting-started" data-sec>
+    <h2>Getting started</h2>
+    <div class="card" data-k="getting started wiring main.cpp setup localizer chassis construct">
+      <p>All wiring is three objects; every number they need comes from
+      <code>robot_config.hpp</code>:</p>
+<pre>#include "robot_config.hpp"
+
+pros::Rotation   fwd_enc(cfg::PORT_FWD_ENCODER);
+pros::Imu        imu(cfg::PORT_IMU);
+pros::Distance   d_f(cfg::PORT_DIST_FRONT), d_b(cfg::PORT_DIST_BACK),
+                 d_l(cfg::PORT_DIST_LEFT),  d_r(cfg::PORT_DIST_RIGHT);
+pros::MotorGroup left({cfg::PORT_DRIVE_LF, cfg::PORT_DRIVE_LB});
+pros::MotorGroup right({cfg::PORT_DRIVE_RF, cfg::PORT_DRIVE_RB});
+
+lillet::Localizer localizer(fwd_enc, nullptr, imu, d_f, d_b, d_l, d_r,
+                                  cfg::makeHwConfig(), cfg::makeMclConfig());
+lillet::Chassis chassis(left, right, localizer,
+                        cfg::makeDrivetrainSpec(), cfg::makeMotionConfig());
+
+void initialize() {
+    imu.reset(true);                    // ~3 s, robot MUST be still
+    localizer.start({-48, -48, 0});     // known start pose
+}
+void autonomous() {
+    chassis.setPose(-48, -48, 0);       // reseed at the placed position
+    chassis.moveToPose(-24, -24, 45, 3000, {.maxSpeed = 90});  // sim export
+}</pre>
+      <p>Autonomous paths: design in the simulator's <strong>Auton Plan</strong> mode, click
+      <strong>Copy LemLib Code</strong>, paste into <code>autonomous()</code>. The call shapes
+      are LemLib's, so exports compile unchanged.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ TUNING GUIDE ═════════════════════════ -->
+  <section id="tuning" data-sec>
+    <h2>Tuning guide — do it in this order</h2>
+    <div class="card" data-k="tuning order checklist sequence calibration">
+      <p>Each step depends on the previous one. All constants live in
+      <code>include/robot_config.hpp</code> (§ numbers below match its sections).</p>
+      <ol class="steps">
+        <li><strong>Ports &amp; directions</strong> — §1</li>
+        <li><strong>Tracking wheel radius / TPI, then offset</strong> — §2</li>
+        <li><strong>IMU</strong> — §3 (mount check, drift check)</li>
+        <li><strong>Distance sensor placement + base readings</strong> — §4b</li>
+        <li><strong>Particle filter</strong> — §4 (simulator Auto Tune)</li>
+        <li><strong>Drivetrain geometry</strong> — §5 (tape measure)</li>
+        <li><strong>Motion controller</strong> — §6 (symptom-driven, on carpet)</li>
+        <li><strong>Driver curve</strong> — §7 (driver preference)</li>
+        <li><strong>Live telemetry</strong> — §8 (optional — verify you can see live position)</li>
+      </ol>
+    </div>
+
+    <h3 id="tune-ports">1 · Ports &amp; directions</h3>
+    <div class="card" data-k="ports directions reversed negative motor encoder check sign">
+      <p>Set the <code>PORT_*</code> constants. Negative port = reversed device (PROS
+      convention, instead of <code>.set_reversed()</code>). Then verify signs:</p>
+      <ol class="steps">
+        <li>Push the robot <strong>forward by hand</strong> → <code>fwd_enc.get_position()</code>
+            must <strong>increase</strong>. If not, negate <code>PORT_FWD_ENCODER</code>.</li>
+        <li><code>chassis.tank(50, 50)</code> must drive <strong>forward</strong>. Negate the
+            offending motor ports until it does.</li>
+      </ol>
+    </div>
+
+    <h3 id="tune-tpi">2 · Tracking wheel — radius, TPI, offset, gear ratio</h3>
+    <div class="card" data-k="ticks per inch tpi tracking wheel radius calibration roll 48 centidegrees odometry gear ratio">
+      <p><strong>Step A — radius (do first, everything scales off it).</strong>
+      Roll the robot <em>exactly 48"</em> forward, read the change in
+      <code>fwd_enc.get_position()</code> = D centidegrees:</p>
+      <pre>FWD_WHEEL_RADIUS_IN = 48 × 36000 / (D × 2π)
+example: D = 550 000  →  48×36000/(550000×6.2832) ≈ 0.500"</pre>
+      <p><strong>TPI</strong> (ticks per inch) is derived automatically as
+      <code>FWD_TICKS_PER_INCH = 36000 / (2π × radius × gear ratio)</code> — a sanity number,
+      not something you set. Radius 0.5" @ 1:1 → TPI ≈ 11459; radius 1.0" → ≈ 5730.</p>
+      <p><strong>Gear ratio</strong>: <code>FWD_GEAR_RATIO</code> = wheel revolutions per one
+      sensor revolution. Sensor on the wheel axle = 1.0.</p>
+      <p><strong>Step B — offset.</strong> Spin the robot in place <em>exactly 10 rotations</em>
+      against a mark; the encoder accumulates D centidegrees from rotation alone:</p>
+      <pre>FWD_OFFSET_IN = D × radius / 360000     (+ = wheel LEFT of turning centre)</pre>
+      <div class="note">Bad radius shows up as the odometry (purple) trail scaling long/short on
+      straight drives. Bad offset shows up as position error that appears only during turns.</div>
+    </div>
+
+    <h3 id="tune-imu">3 · IMU</h3>
+    <div class="card" data-k="imu inertial calibration drift heading mount">
+      <p>No constants — but two checks. <strong>Calibration</strong>: <code>imu.reset(true)</code>
+      runs in <code>initialize()</code>; the robot must be dead still for ~3 s.
+      <strong>Drift</strong>: leave the robot still 2 minutes and watch the heading on the LCD.
+      More than ~2° → remount (rigid, near the centre of rotation, away from motors) or replace
+      the unit. The whole stack trusts IMU heading absolutely; test how much drift the filter
+      survives with the simulator's <em>IMU drift</em> slider before trusting a marginal IMU.</p>
+    </div>
+
+    <h3 id="tune-dist">4 · Distance sensors — placement &amp; base readings</h3>
+    <div class="card" data-k="distance sensor placement mounting base reading bias offset lateral yaw calibration where sensors are placed robot sides">
+      <p>The filter needs to know where each sensor <em>actually</em> is, per sensor, in
+      <code>robot_config.hpp</code> §4b (defaults assume face-centre, perfectly aimed, no bias):</p>
+      <div class="tblwrap"><table>
+        <tr><th>Constant (×4 faces)</th><th>Meaning</th><th>How to measure</th></tr>
+        <tr><td><code>DIST_*_FWD_IN</code></td><td>robot centre → sensor glass, inches (-1 = use <code>ROBOT_HALF_IN</code>)</td><td>ruler, centre of robot to the glass</td></tr>
+        <tr><td><code>DIST_*_LAT_IN</code></td><td>position along the face; + = right of the facing direction</td><td>ruler from the face centreline</td></tr>
+        <tr><td><code>DIST_*_YAW_DEG</code></td><td>aim error; + = beam points clockwise of straight out</td><td>usually 0 unless the mount is visibly crooked</td></tr>
+        <tr><td><code>DIST_*_BASE_MM</code></td><td><strong>base reading</strong>: raw − true distance (recession + zero bias); subtracted from every raw reading</td><td>procedure below</td></tr>
+      </table></div>
+      <p><strong>Base reading calibration</strong> (repeat for each sensor — they differ). No
+      tape measure or 24" spacer needed — <code>opcontrol()</code> has a live readout built in
+      (<code>src/main.cpp</code>, <code>printDistCalibration()</code>):</p>
+      <ol class="steps">
+        <li>Drive into driver control and <strong>hold Y</strong> — the LCD swaps its pose
+            readout for all four sensors' live <code>edge=…in raw=…mm</code> lines.</li>
+        <li>Push the face you're calibrating <strong>flush against a flat wall</strong>, squarely.</li>
+        <li>Read that face's <code>raw=</code> value off the LCD — with <code>BASE_MM</code>
+            still at its default (0) this <em>is</em> the calibration value. Round it and type it
+            into that face's <code>DIST_*_BASE_MM</code>. Typical: 0–40 mm.</li>
+      </ol>
+      <p>Why this works: at the default mount (<code>DIST_*_FWD_IN = -1</code>, i.e. "use
+      <code>ROBOT_HALF_IN</code>"), the sensor glass is assumed to sit exactly at the robot's
+      physical edge — so touching the wall makes the <em>true</em> distance exactly 0, and
+      <code>BASE_MM = raw − true distance</code> collapses to just <code>raw</code>. The readout's
+      <code>edge=</code> value already does that subtraction for you (and folds in any non-default
+      <code>FWD_IN</code>, so it stays edge-relative even for a recessed/proud mount) — once
+      calibrated, touching a wall should show <code>edge=0.00in</code> on every face; anything
+      else means the mount shifted or <code>BASE_MM</code> needs a nudge.</p>
+      <div class="note">Also in §4: <code>max_range_mm</code> (1900 — the real sensor dies near
+      its 2 m limit) and <code>min_distance_confidence</code> (45 of 63 — raise if the filter
+      twitches near other robots, lower if too few readings survive).</div>
+    </div>
+
+    <h3 id="tune-mcl">5 · Particle filter (AMCL)</h3>
+    <div class="card" data-k="particle filter mcl amcl auto tune sigma alpha inject neff kidnap convergence">
+      <p>Don't hand-tune this. In the simulator: set <em>Sensor noise σ</em> and <em>Encoder
+      noise</em> to realistic values (20 mm / 0.5%), leave <em>Sensor max range</em> at 2000 mm,
+      click <strong>Auto Tune (30 trials)</strong>, copy the values into
+      <code>makeMclConfig()</code>. Then sanity-check with <code>node sim_tests.mjs</code>.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Symptom</th><th>Try</th></tr>
+        <tr><td>Estimate ignores real bumps / shoves</td><td>raise <code>alpha3</code>/<code>alpha4</code></td></tr>
+        <tr><td>Estimate wanders while driving straight</td><td>lower <code>alpha3</code></td></tr>
+        <tr><td>Corrections yank the pose around</td><td>raise <code>sigma_hit_mm</code></td></tr>
+        <tr><td>Sensors barely correct drift</td><td>lower <code>sigma_hit_mm</code>, check base readings first</td></tr>
+        <tr><td>Never recovers after being moved</td><td>raise <code>random_inject_frac</code></td></tr>
+        <tr><td>Twitchy near other robots</td><td>raise <code>min_distance_confidence</code>, lower <code>occlusion_thresh_mm</code></td></tr>
+      </table></div>
+    </div>
+
+    <h3 id="tune-motion">6 · Motion controller</h3>
+    <div class="card" data-k="motion tuning overshoot oscillate weave carrot lead decel angkp turn accel symptom">
+      <p>On carpet, charged battery, one constant at a time, in this order:</p>
+      <div class="tblwrap"><table>
+        <tr><th>Symptom</th><th>Constant</th><th>Direction</th></tr>
+        <tr><td>Weaves / S-curves along a straight approach</td><td><code>MTN_ANG_KP</code></td><td>lower</td></tr>
+        <tr><td>Corners lazily, drifts wide of the carrot</td><td><code>MTN_ANG_KP</code></td><td>raise</td></tr>
+        <tr><td>In-place turns overshoot</td><td><code>MTN_TURN_ACCEL_DEG_S2</code></td><td>raise until it just overshoots, back off 20%</td></tr>
+        <tr><td>Overshoots drive targets</td><td><code>MTN_DECEL_IN</code></td><td>raise</td></tr>
+        <tr><td>Crawls in painfully early</td><td><code>MTN_DECEL_IN</code></td><td>lower — or set <code>minSpeed</code> per move</td></tr>
+        <tr><td>Approach arc too wide / too tight</td><td><code>MTN_LEAD</code></td><td>lower / raise (or per-move <code>lead</code>)</td></tr>
+        <tr><td>Move times out just short of the target</td><td><code>MoveParams</code></td><td>longer timeout or <code>minSpeed ≈ 8–15</code></td></tr>
+        <tr><td>Final heading matters (scoring pose)</td><td><code>MoveParams::settleHeading</code></td><td>set <code>true</code> on that move</td></tr>
+      </table></div>
+      <div class="note good">Turns are stall-proof: if the robot is blocked mid-turn the profile
+      re-locks on the residual error and keeps trying until the timeout — no silent idling.</div>
+    </div>
+
+    <h3 id="tune-curve">7 · Driver curve</h3>
+    <div class="card" data-k="drive curve expo deadband min output gain joystick feel opcontrol">
+      <p><code>MTN_DRIVE_CURVE_GAIN</code> 0 = linear. 10–20 = soft near centre, full at the
+      rails. <code>DEADBAND</code> kills stick drift (3 is fine);
+      <code>MIN_OUTPUT</code> 8–12 stops static friction eating tiny inputs. Only affects
+      opcontrol feel — never autonomous.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ NAMESPACES ═════════════════════════ -->
+  <section id="namespaces" data-sec>
+    <h2>Namespaces</h2>
+    <div class="card" data-k="namespaces index overview list lillet cfg">
+      <p>Two top-level namespaces, laid out the way you'd browse a generated API index:</p>
+      <div class="tblwrap"><table>
+        <tr><th>Namespace</th><th>Description</th></tr>
+        <tr><td><code>lillet</code></td><td>The whole library. Localization — <code>Localizer</code> (fusion + background task), <code>ParticleFilter</code> (the AMCL core), <code>FieldModel</code> (ray-cast field geometry + sensor mounts), and the shared types (<code>Pose</code>, <code>OdomDelta</code>, <code>SensorData</code>, <code>Rect</code>) — motion — <code>Chassis</code> (the carrot + locked-turn controller, now with optional async motion), <code>MoveParams</code>, <code>DrivetrainSpec</code>, <code>MotionConfig</code>, plus reusable utilities (<code>PID</code>, <code>ExitCondition</code>, <code>ExpoDriveCurve</code>) not used internally by <code>Chassis</code> but available for subsystems — telemetry — <code>TelemetryReporter</code>, the live position printer — and selector — <code>AutonSelector</code>, the LCD-button autonomous picker — all live in one namespace. (Physically the code is still split across <code>include/localization/</code>, <code>include/motion/</code>, <code>include/telemetry/</code>, and <code>include/selector/</code> — see <a href="#files">Files</a> — only the C++ namespace is unified.)</td></tr>
+        <tr><td><code>cfg</code></td><td>The tuning file's namespace (<code>robot_config.hpp</code>). Holds every port number and tunable constant plus the <code>make*Config()</code> factory functions that build the structs <code>lillet</code> consumes. This is the only namespace you should need to edit.</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ CONFIG REFERENCE ═════════════════════════ -->
+  <section id="config" data-sec>
+    <h2>All parameters (robot_config.hpp)</h2>
+    <div class="card" data-k="ports config parameters reference">
+      <div class="sig">§1 Ports</div>
+      <div class="tblwrap"><table>
+        <tr><th>Constant</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>PORT_FWD_ENCODER</code></td><td>1</td><td>forward tracking wheel (Rotation); negative = reversed</td></tr>
+        <tr><td><code>PORT_IMU</code></td><td>3</td><td>inertial sensor</td></tr>
+        <tr><td><code>PORT_DIST_FRONT/BACK/LEFT/RIGHT</code></td><td>4/5/6/7</td><td>distance sensors, one per face</td></tr>
+        <tr><td><code>PORT_DRIVE_LF/LB/RF/RB</code></td><td>8/9/−10/−11</td><td>drive motors; negative = reversed</td></tr>
+      </table></div>
+    </div>
+    <div class="card" data-k="tracking wheel radius offset gear ratio tpi ticks per inch odometry config">
+      <div class="sig">§2 Tracking wheel</div>
+      <div class="tblwrap"><table>
+        <tr><th>Constant</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>FWD_WHEEL_RADIUS_IN</code></td><td>0.5</td><td>measured wheel radius (roll-48" test)</td></tr>
+        <tr><td><code>FWD_OFFSET_IN</code></td><td>0</td><td>perpendicular offset from turning centre; + = left</td></tr>
+        <tr><td><code>FWD_GEAR_RATIO</code></td><td>1.0</td><td>wheel revs per sensor rev</td></tr>
+        <tr><td><code>FWD_TICKS_PER_INCH</code></td><td><em>derived</em></td><td>36000 / (2π · r<sub>eff</sub>) — sanity number</td></tr>
+        <tr><td><code>HOR_WHEEL_RADIUS_IN / HOR_OFFSET_IN / HOR_GEAR_RATIO</code></td><td>1 / 0 / 1</td><td>optional lateral wheel (currently unused — nullptr)</td></tr>
+      </table></div>
+    </div>
+    <div class="card" data-k="mcl config particles inject alpha sigma occlusion range confidence neff gating parameters">
+      <div class="sig">§4 Particle filter (makeMclConfig)</div>
+      <div class="tblwrap"><table>
+        <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>num_particles</code></td><td>200</td><td>pose hypotheses; CPU-linear</td></tr>
+        <tr><td><code>random_inject_frac</code></td><td>0.10</td><td>fraction re-spawned per resample (kidnap recovery)</td></tr>
+        <tr><td><code>random_inject_heading_stddev_rad</code></td><td>0.05</td><td>injected headings ≈ IMU ± 3°</td></tr>
+        <tr><td><code>alpha1 / alpha2</code></td><td>0.025 / 0.0025</td><td>heading noise ∝ rotation / translation</td></tr>
+        <tr><td><code>alpha3 / alpha4</code></td><td>0.05 / 0.05</td><td>translation noise ∝ translation / rotation</td></tr>
+        <tr><td><code>sigma_hit_mm</code></td><td>80</td><td>measurement σ (mm)</td></tr>
+        <tr><td><code>sigma_speed_mm_per_ips</code></td><td>1.5</td><td>extra σ per in/s (reading staleness)</td></tr>
+        <tr><td><code>z_hit / z_rand</code></td><td>0.75 / 0.25</td><td>Gaussian / uniform mixture weights</td></tr>
+        <tr><td><code>max_range_mm</code></td><td>1900</td><td>discard readings beyond (real limit ~2 m)</td></tr>
+        <tr><td><code>min_distance_confidence</code></td><td>45</td><td>discard readings below this get_confidence() (0–63)</td></tr>
+        <tr><td><code>occlusion_thresh_mm</code></td><td>300</td><td>reading ≥ this much short of expected = blocked sensor</td></tr>
+        <tr><td><code>robot_half_in</code></td><td>7.0</td><td>default centre→glass distance</td></tr>
+        <tr><td><code>mounts</code> (§4b)</td><td>ideal</td><td>per-sensor fwd/lat/yaw/base — see tuning step 4</td></tr>
+        <tr><td><code>sensor_update_dist_in</code></td><td>8.0</td><td>correct every N inches of travel</td></tr>
+        <tr><td><code>neff_update_thresh</code></td><td>0.30</td><td>…or when Neff confidence drops below</td></tr>
+        <tr><td><code>neff_min_cycles</code></td><td>3</td><td>min cycles (~120 ms) between Neff-forced corrections</td></tr>
+      </table></div>
+    </div>
+    <div class="card" data-k="drivetrain track width wheel diameter rpm free speed config">
+      <div class="sig">§5 Drivetrain</div>
+      <div class="tblwrap"><table>
+        <tr><th>Constant</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>DRIVE_TRACK_WIDTH_IN</code></td><td>12.0</td><td>left↔right wheel centre distance — scales every turn</td></tr>
+        <tr><td><code>DRIVE_WHEEL_DIAM_IN</code></td><td>2.75</td><td>driven wheel diameter (worn omnis run small)</td></tr>
+        <tr><td><code>DRIVE_RPM</code></td><td>450</td><td>WHEEL rpm = cartridge rpm × external ratio</td></tr>
+      </table></div>
+    </div>
+    <div class="card" data-k="motion config lead near lock decel angkp turn accel exit max min speed parameters">
+      <div class="sig">§6 Motion controller</div>
+      <div class="tblwrap"><table>
+        <tr><th>Constant</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>MTN_LEAD</code></td><td>0.6</td><td>carrot offset fraction — arc width</td></tr>
+        <tr><td><code>MTN_NEAR_LOCK_IN</code></td><td>6.0</td><td>switch to final-heading lock inside this distance</td></tr>
+        <tr><td><code>MTN_DECEL_IN</code></td><td>20.0</td><td>start slowing this far out</td></tr>
+        <tr><td><code>MTN_ANG_KP</code></td><td>1.8</td><td>carrot steering gain</td></tr>
+        <tr><td><code>MTN_TURN_ACCEL_DEG_S2</code></td><td>720</td><td>turn profile angular acceleration</td></tr>
+        <tr><td><code>MTN_EXIT_DIST_IN / MTN_EXIT_ANGLE_DEG</code></td><td>1.5 / 1.0</td><td>"arrived" tolerances (also turn re-lock band)</td></tr>
+        <tr><td><code>MTN_DEFAULT_MAX_SPEED / MIN / TURN_MAX</code></td><td>100 / 0 / 80</td><td>0–127 LemLib units</td></tr>
+        <tr><td><code>MTN_DRIVE_CURVE_DEADBAND / MIN_OUTPUT / GAIN</code></td><td>3 / 0 / 0</td><td>§7 driver curve</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ API HEADERS ═════════════════════════ -->
+  <section id="api" data-sec>
+    <h2>API Headers</h2>
+    <div class="card" data-k="api headers index overview object oriented header files list lillet">
+      <p>The lillet API takes an object-oriented approach: one class per concern, wired together
+      in <code>main.cpp</code> (see <a href="#getting-started">Getting started</a>), plus a small
+      free-function/constant <code>cfg</code> namespace for hardware ports and tuning. Headers are
+      grouped below the way you'd browse a generated API index — click a header to jump to its
+      <strong>Functions</strong> summary and full <strong>Function documentation</strong>.</p>
+    </div>
+
+    <h3>Motion Classes</h3>
+    <div class="card" data-k="motion classes headers index chassis pid exit condition drive curve">
+      <div class="tblwrap"><table>
+        <tr><th>Header</th><th>Contents</th></tr>
+        <tr><td><a href="#hdr-chassis"><code>motion/chassis.hpp</code></a></td><td>lillet API for the drivetrain motion controller — <code>Chassis</code>, <code>MoveParams</code></td></tr>
+        <tr><td><a href="#hdr-chassis-config"><code>motion/chassis_config.hpp</code></a></td><td>lillet API for drivetrain/motion tuning structs — <code>DrivetrainSpec</code>, <code>MotionConfig</code></td></tr>
+        <tr><td><a href="#hdr-pid"><code>motion/pid.hpp</code></a></td><td>lillet API for the general-purpose <code>PID</code> controller</td></tr>
+        <tr><td><a href="#hdr-exit-condition"><code>motion/exit_condition.hpp</code></a></td><td>lillet API for the <code>ExitCondition</code> settle-detector utility</td></tr>
+        <tr><td><a href="#hdr-drive-curve"><code>motion/drive_curve.hpp</code></a></td><td>lillet API for joystick shaping — <code>DriveCurve</code>, <code>ExpoDriveCurve</code></td></tr>
+      </table></div>
+    </div>
+
+    <h3>Localization Classes</h3>
+    <div class="card" data-k="localization classes headers index types field model particle filter localizer">
+      <div class="tblwrap"><table>
+        <tr><th>Header</th><th>Contents</th></tr>
+        <tr><td><a href="#hdr-types"><code>localization/types.hpp</code></a></td><td>lillet API for shared value types — <code>Pose</code>, <code>OdomDelta</code>, <code>SensorData</code>, <code>Particle</code>, <code>normalizeAngle()</code></td></tr>
+        <tr><td><a href="#hdr-field-model"><code>localization/field_model.hpp</code></a></td><td>lillet API for field ray-casting — <code>FieldModel</code>, <code>Rect</code>, <code>SensorMount</code>/<code>SensorMounts</code></td></tr>
+        <tr><td><a href="#hdr-particle-filter"><code>localization/particle_filter.hpp</code></a></td><td>lillet API for the AMCL core — <code>ParticleFilter</code>, <code>MCLConfig</code></td></tr>
+        <tr><td><a href="#hdr-localization"><code>localization/localization.hpp</code></a></td><td>lillet API for the sensor-fusion façade — <code>Localizer</code>, <code>HardwareConfig</code></td></tr>
+      </table></div>
+    </div>
+
+    <h3>Other Classes</h3>
+    <div class="card" data-k="other classes headers index telemetry selector">
+      <div class="tblwrap"><table>
+        <tr><th>Header</th><th>Contents</th></tr>
+        <tr><td><a href="#hdr-telemetry"><code>telemetry/telemetry.hpp</code></a></td><td>lillet API for live position reporting — <code>TelemetryReporter</code></td></tr>
+        <tr><td><a href="#hdr-selector"><code>selector/selector.hpp</code></a></td><td>lillet API for the LCD autonomous picker — <code>AutonSelector</code>, <code>AutonRoutine</code></td></tr>
+      </table></div>
+    </div>
+
+    <h3>Configuration Functions</h3>
+    <div class="card" data-k="configuration functions headers index robot config">
+      <div class="tblwrap"><table>
+        <tr><th>Header</th><th>Contents</th></tr>
+        <tr><td><a href="#hdr-robot-config"><code>robot_config.hpp</code></a></td><td>the <code>cfg</code> namespace — every port/tuning constant (§1–§8, see <a href="#config">All parameters</a>) plus the <code>make*Config()</code> factory functions</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ chassis.hpp ═════════════════════════ -->
+  <section id="hdr-chassis" data-sec>
+    <h2>motion/chassis.hpp</h2>
+    <div class="card" data-k="chassis hpp file description contains prototypes">
+      <p>Contains prototypes for the <code>lillet::Chassis</code> motion-controller class and its
+      <code>MoveParams</code> per-move override struct. Direct-drive chassis with no internal
+      odometry of its own — every motion call reads
+      <a href="#fn-localizer-getPose"><code>Localizer::getPose()</code></a> as its sole position
+      feedback. <code>moveToPose</code>/<code>moveToPoint</code>/<code>turnToHeading</code>/
+      <code>turnToPoint</code> port the carrot + kinematic controller validated in the browser
+      simulator, not LemLib's PID boomerang: turn direction/total angle are locked once per motion
+      and driven by an accel/decel velocity ramp instead of live proportional feedback, which is
+      what avoids oscillation on near-180° turns.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="chassis functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-chassis-ctor">Chassis(left, right, localizer, spec, cfg)</a></code></td><td>Constructs a new Chassis object.</td></tr>
+        <tr><td><code><a href="#fn-chassis-dtor">~Chassis()</a></code></td><td>Cancels any in-flight async motion and waits (bounded) for it to exit.</td></tr>
+        <tr><td><code><a href="#fn-chassis-moveToPose">moveToPose(x, y, thetaDeg, timeoutMs, params)</a></code></td><td>Boomerang-carrot drive to a position and heading.</td></tr>
+        <tr><td><code><a href="#fn-chassis-moveToPoint">moveToPoint(x, y, timeoutMs, params)</a></code></td><td>Drives at a point directly — no heading target.</td></tr>
+        <tr><td><code><a href="#fn-chassis-turnToHeading">turnToHeading(thetaDeg, timeoutMs, params)</a></code></td><td>In-place turn to an absolute heading.</td></tr>
+        <tr><td><code><a href="#fn-chassis-turnToPoint">turnToPoint(x, y, timeoutMs, params)</a></code></td><td>In-place turn to face (or away from) a point.</td></tr>
+        <tr><td><code><a href="#fn-chassis-tank">tank(left, right, useCurve = true)</a></code></td><td>Tank-style driver control.</td></tr>
+        <tr><td><code><a href="#fn-chassis-arcade">arcade(throttle, turn, useCurve = true)</a></code></td><td>Arcade-style driver control.</td></tr>
+        <tr><td><code><a href="#fn-chassis-setPose">setPose(x, y, thetaDeg)</a></code></td><td>Reseeds the localizer at a known pose.</td></tr>
+        <tr><td><code><a href="#fn-chassis-getPose">getPose()</a></code></td><td>Returns the current fused pose estimate.</td></tr>
+        <tr><td><code><a href="#fn-chassis-setBrakeMode">setBrakeMode(mode)</a></code></td><td>Sets the brake mode on both drive motor groups.</td></tr>
+        <tr><td><code><a href="#fn-chassis-waitUntilDone">waitUntilDone()</a></code></td><td>Blocks until the current async motion (if any) finishes.</td></tr>
+        <tr><td><code><a href="#fn-chassis-isMoving">isMoving()</a></code></td><td>True while an async motion is in flight.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-chassis-ctor" data-k="chassis constructor motorgroup localizer drivetrain spec">
+      <div class="sig">Chassis(pros::MotorGroup&amp; left, pros::MotorGroup&amp; right, Localizer&amp; localizer, const DrivetrainSpec&amp; spec, const MotionConfig&amp; cfg)</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Constructs a new Chassis object.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>left</code> / <code>right</code></td><td><code>pros::MotorGroup&amp;</code></td><td>drive motor groups; stored by reference, must outlive the Chassis</td></tr>
+        <tr><td><code>localizer</code></td><td><code>Localizer&amp;</code></td><td>sole position feedback — Chassis has no internal odometry of its own</td></tr>
+        <tr><td><code>spec</code></td><td><code>DrivetrainSpec</code></td><td>track width, wheel diameter, rpm (§5) — see <a href="#config">All parameters</a></td></tr>
+        <tr><td><code>cfg</code></td><td><code>MotionConfig</code></td><td>carrot/turn-profile tuning (§6) — see <a href="#config">All parameters</a></td></tr>
+      </table></div>
+<pre>pros::MotorGroup left({8, 9});
+pros::MotorGroup right({-10, -11});
+lillet::Chassis chassis(left, right, localizer,
+                        cfg::makeDrivetrainSpec(), cfg::makeMotionConfig());</pre>
+    </div>
+    <div class="card" id="fn-chassis-dtor" data-k="chassis destructor cancel async">
+      <div class="sig">~Chassis()</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Cancels any in-flight async motion and waits (bounded) for it to exit before the object
+      is destroyed.</p>
+    </div>
+    <div class="card" id="fn-chassis-moveToPose" data-k="movetopose boomerang carrot drive to pose heading blocking autonomous">
+      <div class="sig">void moveToPose(float x, float y, float thetaDeg, int timeoutMs, MoveParams params = {}) <span class="tag">blocking</span></div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Boomerang-carrot drive to a position <strong>and</strong> heading. Chases a carrot
+      offset behind the target along the target heading (scaled by <code>lead</code>); inside
+      <code>nearLockIn</code> hands heading control to the locked turn profile. Exits when within
+      <code>exitDistIn</code> (plus heading tolerance if <code>settleHeading</code>) or timeout.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>x</code>, <code>y</code></td><td><code>float</code></td><td>target position, field inches</td></tr>
+        <tr><td><code>thetaDeg</code></td><td><code>float</code></td><td>target heading, degrees CW from north</td></tr>
+        <tr><td><code>timeoutMs</code></td><td><code>int</code></td><td>abort the move after this many ms even if not arrived</td></tr>
+        <tr><td><code>params</code></td><td><code>MoveParams</code></td><td><code>{}</code> — per-move overrides, see <a href="#fn-moveparams">MoveParams</a></td></tr>
+      </table></div>
+<pre>chassis.moveToPose(-24, -24, 45, 3000, {.maxSpeed = 90});</pre>
+    </div>
+    <div class="card" id="fn-chassis-moveToPoint" data-k="movetopoint drive to point blocking">
+      <div class="sig">void moveToPoint(float x, float y, int timeoutMs, MoveParams params = {}) <span class="tag">blocking</span></div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Drives at the point directly (carrot = target, no heading goal, no near-lock).</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>x</code>, <code>y</code></td><td><code>float</code></td><td>target position, field inches</td></tr>
+        <tr><td><code>timeoutMs</code></td><td><code>int</code></td><td>abort after this many ms</td></tr>
+        <tr><td><code>params</code></td><td><code>MoveParams</code></td><td>per-move overrides; <code>theta</code>-related fields are unused (no heading target)</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-chassis-turnToHeading" data-k="turntoheading turn in place locked sign profile stall relock blocking">
+      <div class="sig">void turnToHeading(float thetaDeg, int timeoutMs, MoveParams params = {}) <span class="tag">blocking</span></div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>In-place turn using the locked-sign kinematic profile (accel ramp + √(2as) decel cap).
+      Direction is chosen once per lock — immune to ±180° error-sign flapping. If blocked/bumped,
+      the profile re-locks on the residual error instead of idling. Exit is closed-loop on the
+      live heading (≤ <code>exitAngleDeg</code> or per-move <code>earlyExitRange</code>).</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>thetaDeg</code></td><td><code>float</code></td><td>target heading, degrees CW from north</td></tr>
+        <tr><td><code>timeoutMs</code></td><td><code>int</code></td><td>abort after this many ms</td></tr>
+        <tr><td><code>params</code></td><td><code>MoveParams</code></td><td><code>maxSpeed</code>/<code>earlyExitRange</code> apply; position fields unused</td></tr>
+      </table></div>
+      <div class="note good">Turns are stall-proof: if the robot is blocked mid-turn the profile
+      re-locks on the residual error and keeps trying until the timeout — no silent idling.</div>
+    </div>
+    <div class="card" id="fn-chassis-turnToPoint" data-k="turntopoint face a point blocking">
+      <div class="sig">void turnToPoint(float x, float y, int timeoutMs, MoveParams params = {}) <span class="tag">blocking</span></div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Turns to face the point (or away from it with <code>forwards = false</code>).</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>x</code>, <code>y</code></td><td><code>float</code></td><td>point to face, field inches</td></tr>
+        <tr><td><code>timeoutMs</code></td><td><code>int</code></td><td>abort after this many ms</td></tr>
+        <tr><td><code>params</code></td><td><code>MoveParams</code></td><td><code>forwards = false</code> faces <em>away</em> from the point instead</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-chassis-tank" data-k="tank driver control opcontrol joystick voltage">
+      <div class="sig">void tank(int left, int right, bool useCurve = true)</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Tank-style driver control. Inputs [−127, 127], open-loop voltage (autonomous uses
+      closed-loop velocity instead). <code>useCurve</code> applies the configured expo drive
+      curve to each input before it reaches the motors.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>left</code>, <code>right</code></td><td><code>int</code></td><td>joystick input, [−127, 127]</td></tr>
+        <tr><td><code>useCurve</code></td><td><code>bool</code></td><td>apply the expo drive curve (§7); default <code>true</code></td></tr>
+      </table></div>
+<pre>void opcontrol() {
+    while (true) {
+        chassis.tank(master.get_analog(ANALOG_LEFT_Y), master.get_analog(ANALOG_RIGHT_Y));
+        pros::delay(10);
+    }
+}</pre>
+    </div>
+    <div class="card" id="fn-chassis-arcade" data-k="arcade driver control opcontrol joystick voltage">
+      <div class="sig">void arcade(int throttle, int turn, bool useCurve = true)</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Arcade-style driver control (single throttle + turn stick). Same input range and curve
+      behaviour as <a href="#fn-chassis-tank"><code>tank()</code></a>.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>throttle</code></td><td><code>int</code></td><td>forward/back input, [−127, 127]</td></tr>
+        <tr><td><code>turn</code></td><td><code>int</code></td><td>turn input, [−127, 127]</td></tr>
+        <tr><td><code>useCurve</code></td><td><code>bool</code></td><td>apply the expo drive curve (§7); default <code>true</code></td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-chassis-setPose" data-k="chassis setpose reseed">
+      <div class="sig">void setPose(float x, float y, float thetaDeg)</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Reseeds the localizer at a known pose (e.g. the start of an autonomous routine). Takes
+      effect on the localizer's next ~40 ms background-task cycle, not synchronously. Thin
+      forwarder to <a href="#fn-localizer-setPose"><code>Localizer::setPose()</code></a>.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>x</code>, <code>y</code></td><td><code>float</code></td><td>field inches</td></tr>
+        <tr><td><code>thetaDeg</code></td><td><code>float</code></td><td>degrees CW from north</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-chassis-getPose" data-k="chassis getpose">
+      <div class="sig">Pose getPose() const</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Returns the fused pose estimate (inches / radians CW). Thin forwarder to
+      <a href="#fn-localizer-getPose"><code>Localizer::getPose()</code></a>.</p>
+    </div>
+    <div class="card" id="fn-chassis-setBrakeMode" data-k="chassis setbrakemode brake mode">
+      <div class="sig">void setBrakeMode(pros::MotorBrake mode)</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Sets the brake mode (e.g. <code>pros::E_MOTOR_BRAKE_HOLD</code>) on both drive motor
+      groups.</p>
+    </div>
+    <div class="card" id="fn-chassis-waitUntilDone" data-k="waituntildone async movement background task intake concurrent lemlib">
+      <div class="sig">void waitUntilDone()</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>Blocks until the current async motion (started with <code>{.async = true}</code>)
+      finishes. No-op if nothing is running. Call this before reading pose/state that depends on
+      the motion having actually completed.</p>
+<pre>chassis.moveToPose(20, 42, 0, 3000, {.maxSpeed = 60, .async = true});
+intake.move(127);          // starts immediately, doesn't wait for the drive
+chassis.waitUntilDone();   // blocks here until the drive move finishes
+intake.move(0);</pre>
+    </div>
+    <div class="card" id="fn-chassis-isMoving" data-k="ismoving async movement background task">
+      <div class="sig">bool isMoving() const</div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <p>True while an async motion is in flight. Starting <strong>any</strong> new motion —
+      async or blocking — automatically cancels whichever one is still running first, so only one
+      loop ever drives the motors.</p>
+    </div>
+    <div class="card" id="fn-moveparams" data-k="moveparams forwards lead maxspeed minspeed early exit range settle heading per move overrides async struct">
+      <div class="sig">struct MoveParams <span class="tag">per-move overrides</span></div>
+      <div class="inc">#include "motion/chassis.hpp"</div>
+      <div class="tblwrap"><table>
+        <tr><th>Field</th><th>Default</th><th>Meaning</th></tr>
+        <tr><td><code>forwards</code></td><td>true</td><td>false = drive backwards (heading logic flips π)</td></tr>
+        <tr><td><code>lead</code></td><td>−1 → cfg</td><td>carrot offset fraction for this move</td></tr>
+        <tr><td><code>maxSpeed</code></td><td>−1 → cfg</td><td>0–127 cap</td></tr>
+        <tr><td><code>minSpeed</code></td><td>0</td><td>floor until near the target — kills the slow decel tail</td></tr>
+        <tr><td><code>earlyExitRange</code></td><td>0</td><td>exit radius (in) / turn exit (deg) for chained moves</td></tr>
+        <tr><td><code>settleHeading</code></td><td>false</td><td><code>moveToPose</code> also requires heading within tolerance to exit</td></tr>
+        <tr><td><code>async</code></td><td>false</td><td>background this motion and return immediately — field name matches LemLib's own; see <a href="#fn-chassis-waitUntilDone">waitUntilDone()</a>/<a href="#fn-chassis-isMoving">isMoving()</a></td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ chassis_config.hpp ═════════════════════════ -->
+  <section id="hdr-chassis-config" data-sec>
+    <h2>motion/chassis_config.hpp</h2>
+    <div class="card" data-k="chassis config hpp file description contains prototypes drivetrainspec motionconfig">
+      <p>Contains the plain tuning structs consumed by <a href="#hdr-chassis"><code>Chassis</code></a>:
+      <code>DrivetrainSpec</code> (physical geometry) and <code>MotionConfig</code> (carrot/turn
+      controller gains). Both are normally built by <code>cfg::makeDrivetrainSpec()</code> /
+      <code>cfg::makeMotionConfig()</code> in <a href="#hdr-robot-config"><code>robot_config.hpp</code></a>
+      rather than constructed by hand.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="chassis config functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-drivetrainspec-freespeed">freeSpeedInPerSec()</a></code></td><td>Free linear speed of the drive at 100% output.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-drivetrainspec-freespeed" data-k="drivetrain spec free speed rpm wheel diameter track width">
+      <div class="sig">float DrivetrainSpec::freeSpeedInPerSec() const</div>
+      <div class="inc">#include "motion/chassis_config.hpp"</div>
+      <p>Free speed = <code>rpm / 60 × π × wheelDiameterIn</code>. 450 rpm × 2.75" ≈ 64.8 in/s.</p>
+    </div>
+    <div class="card" id="fn-drivetrainspec" data-k="drivetrainspec struct trackwidth wheeldiameter rpm">
+      <div class="sig">struct DrivetrainSpec { float trackWidthIn; float wheelDiameterIn; float rpm; }</div>
+      <div class="inc">#include "motion/chassis_config.hpp"</div>
+      <p>Mirrors LemLib's <code>Drivetrain</code> struct, minus the fields (PTO, chase power) the
+      carrot + kinematic controller doesn't use. See §5 in <a href="#config">All parameters</a>.</p>
+    </div>
+    <div class="card" id="fn-motionconfig" data-k="motionconfig struct lead near lock decel angkp turn accel exit max min speed drive curve">
+      <div class="sig">struct MotionConfig { lead, nearLockIn, decelIn, angKp, turnAccelDegS2, exitDistIn, exitAngleDeg, defaultMaxSpeed, defaultMinSpeed, defaultTurnMaxSpeed, driveCurveDeadband, driveCurveMinOutput, driveCurveGain }</div>
+      <div class="inc">#include "motion/chassis_config.hpp"</div>
+      <p>Tuning values for the carrot + kinematic controller. See §6/§7 in
+      <a href="#config">All parameters</a> for every field's default and meaning.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ pid.hpp ═════════════════════════ -->
+  <section id="hdr-pid" data-sec>
+    <h2>motion/pid.hpp</h2>
+    <div class="card" data-k="pid hpp file description contains prototypes">
+      <p>Contains prototypes for the <code>lillet::PID</code> class — a faithful port of LemLib's
+      PID controller (kP/kI/kD + integral windup range, optional sign-flip integral reset).
+      <strong>Not</strong> used by <code>Chassis</code>'s own motion control law — kept as a
+      general-purpose utility for anything else on the robot (lifts, arms, flywheels) that wants a
+      classic PID loop.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="pid functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-pid-ctor">PID(kP, kI, kD, windupRange = 0, signFlipReset = false)</a></code></td><td>Constructs a new PID object.</td></tr>
+        <tr><td><code><a href="#fn-pid-update">update(error)</a></code></td><td>Runs one control-loop iteration and returns the output.</td></tr>
+        <tr><td><code><a href="#fn-pid-reset">reset()</a></code></td><td>Zeroes the integral and previous-error state.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-pid-ctor" data-k="pid constructor kp ki kd windup sign flip reset subsystem utility">
+      <div class="sig">PID(float kP, float kI, float kD, float windupRange = 0, bool signFlipReset = false)</div>
+      <div class="inc">#include "motion/pid.hpp"</div>
+      <p>Constructs a new PID object.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Default</th><th>Description</th></tr>
+        <tr><td><code>kP</code>, <code>kI</code>, <code>kD</code></td><td>—</td><td>proportional / integral / derivative gains</td></tr>
+        <tr><td><code>windupRange</code></td><td>0</td><td>integral only accumulates while <code>|error| ≤ windupRange</code>; 0 = always accumulate</td></tr>
+        <tr><td><code>signFlipReset</code></td><td>false</td><td>zero the integral the instant <code>error</code> crosses zero</td></tr>
+      </table></div>
+      <div class="note">The D term is computed as <code>error − prevError</code> (positive sign) —
+      pass a <strong>negative</strong> <code>kD</code> to damp, not a positive one.</div>
+<pre>lillet::PID liftPid(0.4f, 0.0f, -0.02f);  // note negative kD
+
+void opcontrol() {
+    liftPid.reset();
+    while (true) {
+        float error = targetDeg - lift.get_position();
+        lift.move(liftPid.update(error));
+        pros::delay(10);
+    }
+}</pre>
+    </div>
+    <div class="card" id="fn-pid-update" data-k="pid update run loop">
+      <div class="sig">float update(float error)</div>
+      <div class="inc">#include "motion/pid.hpp"</div>
+      <p>Runs one control-loop iteration on the given error and returns the controller output
+      (kP·error + kI·integral + kD·(error − prevError)).</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>error</code></td><td><code>float</code></td><td>target minus current value, in whatever units the caller uses</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-pid-reset" data-k="pid reset zero integral">
+      <div class="sig">void reset()</div>
+      <div class="inc">#include "motion/pid.hpp"</div>
+      <p>Zeroes the accumulated integral and previous-error state. Call before reusing a PID
+      instance for a new setpoint/target.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ exit_condition.hpp ═════════════════════════ -->
+  <section id="hdr-exit-condition" data-sec>
+    <h2>motion/exit_condition.hpp</h2>
+    <div class="card" data-k="exit condition hpp file description contains prototypes">
+      <p>Contains prototypes for the <code>lillet::ExitCondition</code> class — a faithful port of
+      LemLib's exit condition: becomes "done" once an input has stayed within a range continuously
+      for a settle time. Available as a general-purpose utility; <code>Chassis</code>'s own
+      motions use a simpler single distance/angle threshold instead of this dual-state timer,
+      matching the already-validated simulator behaviour.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="exit condition functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-exitcondition-ctor">ExitCondition(range, time)</a></code></td><td>Constructs a new ExitCondition object.</td></tr>
+        <tr><td><code><a href="#fn-exitcondition-update">update(input)</a></code></td><td>Feeds one new input sample and returns whether it's settled.</td></tr>
+        <tr><td><code><a href="#fn-exitcondition-getexit">getExit()</a></code></td><td>Returns the last computed settle state without feeding a new sample.</td></tr>
+        <tr><td><code><a href="#fn-exitcondition-reset">reset()</a></code></td><td>Clears the settle timer.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-exitcondition-ctor" data-k="exit condition constructor settle time in range utility">
+      <div class="sig">ExitCondition(float range, int time)</div>
+      <div class="inc">#include "motion/exit_condition.hpp"</div>
+      <p>Constructs a new ExitCondition object.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>range</code></td><td><code>float</code></td><td>tolerance — "settled" means <code>|input| ≤ range</code></td></tr>
+        <tr><td><code>time</code></td><td><code>int</code></td><td>milliseconds the input must stay within <code>range</code> continuously before <code>getExit()</code> reports true</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-exitcondition-update" data-k="exit condition update feed sample">
+      <div class="sig">bool update(float input)</div>
+      <div class="inc">#include "motion/exit_condition.hpp"</div>
+      <p>Feeds one new input sample (call once per control-loop tick) and returns whether the
+      condition has now settled.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>input</code></td><td><code>float</code></td><td>current error/value to test against <code>range</code></td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-exitcondition-getexit" data-k="exit condition getexit read state">
+      <div class="sig">bool getExit()</div>
+      <div class="inc">#include "motion/exit_condition.hpp"</div>
+      <p>Returns the settle state computed by the most recent <code>update()</code> call, without
+      feeding a new sample.</p>
+    </div>
+    <div class="card" id="fn-exitcondition-reset" data-k="exit condition reset clear timer">
+      <div class="sig">void reset()</div>
+      <div class="inc">#include "motion/exit_condition.hpp"</div>
+      <p>Clears the settle timer and done flag. Call before reusing an instance for a new move.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ drive_curve.hpp ═════════════════════════ -->
+  <section id="hdr-drive-curve" data-sec>
+    <h2>motion/drive_curve.hpp</h2>
+    <div class="card" data-k="drive curve hpp file description contains prototypes">
+      <p>Contains prototypes for <code>lillet::DriveCurve</code> (the abstract shaping interface)
+      and <code>lillet::ExpoDriveCurve</code> (the concrete LemLib-style exponential curve used by
+      <a href="#hdr-chassis"><code>Chassis::tank()</code>/<code>arcade()</code></a>). Only affects
+      opcontrol feel — never autonomous accuracy.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="drive curve functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-drivecurve-curve">DriveCurve::curve(input)</a></code></td><td>Pure-virtual shaping interface.</td></tr>
+        <tr><td><code><a href="#fn-expodrivecurve-ctor">ExpoDriveCurve(deadband, minOutput, curveGain)</a></code></td><td>Constructs a new ExpoDriveCurve object.</td></tr>
+        <tr><td><code><a href="#fn-expodrivecurve-curve">ExpoDriveCurve::curve(input)</a></code></td><td>Shapes one raw joystick input.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-drivecurve-curve" data-k="drivecurve abstract interface curve virtual">
+      <div class="sig">virtual float DriveCurve::curve(float input) = 0</div>
+      <div class="inc">#include "motion/drive_curve.hpp"</div>
+      <p>Abstract shaping interface. Implementations take a raw <code>[-127, 127]</code> joystick
+      input and return the shaped output in the same range.</p>
+    </div>
+    <div class="card" id="fn-expodrivecurve-ctor" data-k="expo drive curve constructor deadband min output gain shape">
+      <div class="sig">ExpoDriveCurve(float deadband, float minOutput, float curveGain)</div>
+      <div class="inc">#include "motion/drive_curve.hpp"</div>
+      <p>Constructs a new ExpoDriveCurve object. Reimplemented from the documented LemLib curve
+      equation (LemLib's own .cpp isn't vendored by the PROS template, only its headers) — same
+      interface and shape, not guaranteed byte-identical output.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Description</th></tr>
+        <tr><td><code>deadband</code></td><td><code>|input|</code> below this maps to exactly 0 — kills stick drift</td></tr>
+        <tr><td><code>minOutput</code></td><td>floor applied to any non-zero output so static friction can't eat a tiny input</td></tr>
+        <tr><td><code>curveGain</code></td><td>0 = linear (no shaping); higher = softer near centre, still full output at the rails</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-expodrivecurve-curve" data-k="expo drive curve curve shape input output">
+      <div class="sig">float ExpoDriveCurve::curve(float input) override</div>
+      <div class="inc">#include "motion/drive_curve.hpp"</div>
+      <p>Shapes one raw <code>[-127, 127]</code> joystick input. Passes through <code>(0, 0)</code>
+      and <code>(±127, ±127)</code> at any gain.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ types.hpp ═════════════════════════ -->
+  <section id="hdr-types" data-sec>
+    <h2>localization/types.hpp</h2>
+    <div class="card" data-k="types hpp file description contains prototypes pose odomdelta sensordata particle units">
+      <p>Contains the shared value types used across the whole library, plus unit constants and
+      one free function. Inches for position, radians CW-from-north in (−π, π] for heading, mm
+      for raw sensor distances.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="types functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-normalizeangle">normalizeAngle(a)</a></code></td><td>Wraps an angle (radians) into (−π, π].</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-normalizeangle" data-k="normalizeangle wrap signed angle radians">
+      <div class="sig">inline float normalizeAngle(float a)</div>
+      <div class="inc">#include "localization/types.hpp"</div>
+      <p>Signed wrap into <code>(−π, π]</code>. Used internally everywhere a heading or heading
+      delta is combined; safe to call directly on any angle in radians.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>a</code></td><td><code>float</code></td><td>angle in radians, any range</td></tr>
+        <tr><td><em>returns</em></td><td><code>float</code></td><td><code>a</code> wrapped into <code>(−π, π]</code></td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-types-structs" data-k="pose odomdelta sensordata particle types units radians inches struct">
+      <div class="sig">struct Pose {float x, y, theta;} · struct OdomDelta {float forward, lateral, heading;} · struct SensorData {int32_t front_mm, back_mm, left_mm, right_mm;} · struct Particle {Pose pose; float weight;}</div>
+      <div class="inc">#include "localization/types.hpp"</div>
+      <p><code>Pose</code>: field position + heading. <code>OdomDelta</code>: one cycle's
+      robot-local motion. <code>SensorData</code>: raw PROS distance readings (mm;
+      <code>PROS_ERR</code> or 9999 = no object). <code>Particle</code>: one AMCL hypothesis
+      (pose + weight). Also: <code>MM_PER_INCH</code> = 25.4, <code>INCH_PER_MM</code>,
+      <code>PI</code>, <code>TWO_PI</code>.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ field_model.hpp ═════════════════════════ -->
+  <section id="hdr-field-model" data-sec>
+    <h2>localization/field_model.hpp</h2>
+    <div class="card" data-k="field model hpp file description contains prototypes raycast obstacles">
+      <p>Contains prototypes for <code>lillet::FieldModel</code> — known, fixed geometry of the
+      field for ray casting, used to compute the "expected" sensor readings that every particle's
+      likelihood is scored against in <a href="#hdr-particle-filter"><code>ParticleFilter::update()</code></a>.
+      By default only the four perimeter walls are present; call <code>addObstacle()</code> for
+      any additional fixed game elements (goals, loaders, toggles).</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="field model functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-fieldmodel-ctor">FieldModel()</a></code></td><td>Constructs a new FieldModel with the four perimeter walls built in.</td></tr>
+        <tr><td><code><a href="#fn-fieldmodel-addobstacle">addObstacle(r)</a></code></td><td>Registers a fixed rectangular field element for ray casting.</td></tr>
+        <tr><td><code><a href="#fn-fieldmodel-raycast">raycast(ox, oy, dx, dy)</a></code></td><td>Casts one ray and returns the distance to the nearest surface.</td></tr>
+        <tr><td><code><a href="#fn-fieldmodel-expectedreadings">expectedReadings(p, robot_half_in)</a></code></td><td>Computes all four expected sensor readings for a pose (ideal mounts).</td></tr>
+        <tr><td><code><a href="#fn-fieldmodel-expectedreadings">expectedReadings(p, mounts, robot_half_in)</a></code></td><td>Same, honouring per-sensor mounting geometry.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-fieldmodel-ctor" data-k="field model constructor perimeter walls">
+      <div class="sig">FieldModel()</div>
+      <div class="inc">#include "localization/field_model.hpp"</div>
+      <p>Constructs a new FieldModel. The four perimeter walls (±<code>FIELD_HALF_IN</code> =
+      71.0") are built in automatically; no obstacles need to be added for a bare field.</p>
+    </div>
+    <div class="card" id="fn-fieldmodel-addobstacle" data-k="field model addobstacle rect">
+      <div class="sig">void addObstacle(const Rect&amp; r)</div>
+      <div class="inc">#include "localization/field_model.hpp"</div>
+      <p>Registers a fixed rectangular field element for ray casting. Call before
+      <a href="#fn-localizer-start"><code>Localizer::start()</code></a> — the perimeter walls are
+      already built in and don't need to be added.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>r</code></td><td><code>const Rect&amp;</code></td><td>axis-aligned bounding box in field inches</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-fieldmodel-raycast" data-k="field model raycast slab aabb obstacles">
+      <div class="sig">float raycast(float ox, float oy, float dx, float dy) const</div>
+      <div class="inc">#include "localization/field_model.hpp"</div>
+      <p>Casts one ray against the four perimeter walls (analytic) plus every registered obstacle
+      (slab-method AABB intersection).</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>ox</code>, <code>oy</code></td><td><code>float</code></td><td>ray origin, field inches</td></tr>
+        <tr><td><code>dx</code>, <code>dy</code></td><td><code>float</code></td><td>normalised ray direction</td></tr>
+        <tr><td><em>returns</em></td><td><code>float</code></td><td>distance to nearest surface, <strong>mm</strong></td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-fieldmodel-expectedreadings" data-k="field model expected readings sensor mount overload robot half">
+      <div class="sig">SensorData expectedReadings(const Pose&amp; p, float robot_half_in) const<br>SensorData expectedReadings(const Pose&amp; p, const SensorMounts&amp; mounts, float robot_half_in) const</div>
+      <div class="inc">#include "localization/field_model.hpp"</div>
+      <p>Computes all four expected sensor readings for a hypothesis pose — this is what every
+      particle's likelihood is scored against in <code>ParticleFilter::update()</code>. The
+      3-argument overload honours per-sensor mounting geometry; the 2-argument overload assumes
+      ideal face-centre mounts.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>p</code></td><td><code>Pose</code></td><td>hypothesis pose to cast from</td></tr>
+        <tr><td><code>mounts</code></td><td><code>SensorMounts</code></td><td>per-sensor placement; omitted overload assumes ideal face-centre mounts</td></tr>
+        <tr><td><code>robot_half_in</code></td><td><code>float</code></td><td>fallback glass distance for any mount left at <code>forward_in = -1</code></td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-rect" data-k="rect struct aabb bounding box">
+      <div class="sig">struct Rect { float x_min, y_min, x_max, y_max; }</div>
+      <div class="inc">#include "localization/field_model.hpp"</div>
+      <p>Axis-aligned bounding box in field inches.</p>
+    </div>
+    <div class="card" id="fn-sensormount" data-k="sensor mount struct forward lateral yaw base reading placement">
+      <div class="sig">struct SensorMount { float forward_in = −1; float lateral_in = 0; float yaw_deg = 0; float base_mm = 0; } · struct SensorMounts { SensorMount front, back, left, right; }</div>
+      <div class="inc">#include "localization/field_model.hpp"</div>
+      <div class="tblwrap"><table>
+        <tr><th>Field</th><th>Default</th><th>Description</th></tr>
+        <tr><td><code>forward_in</code></td><td>−1</td><td>centre→glass distance; −1 = use <code>robot_half_in</code></td></tr>
+        <tr><td><code>lateral_in</code></td><td>0</td><td>position along the face; + = right of the facing direction</td></tr>
+        <tr><td><code>yaw_deg</code></td><td>0</td><td>aim error; + = beam points clockwise of straight out</td></tr>
+        <tr><td><code>base_mm</code></td><td>0</td><td>calibrated raw-reading bias, subtracted in <code>Localizer::readSensors()</code></td></tr>
+      </table></div>
+      <p>One sensor's real placement — see <a href="#tune-dist">tuning step 4</a> for the
+      calibration procedure. <code>SensorMounts</code> is simply <code>{front, back, left, right}</code>
+      of these.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ particle_filter.hpp ═════════════════════════ -->
+  <section id="hdr-particle-filter" data-sec>
+    <h2>localization/particle_filter.hpp <span class="tag">the AMCL core — driven by Localizer's task; you rarely call these directly</span></h2>
+    <div class="card" data-k="particle filter hpp file description contains prototypes amcl">
+      <p>Contains prototypes for <code>lillet::ParticleFilter</code> (the AMCL core) and its
+      <code>MCLConfig</code> tuning struct. Maintains a weighted set of pose hypotheses; each cycle
+      calls <code>predict()</code> → apply the odometry motion model, <code>update()</code> →
+      weight particles by sensor likelihood, <code>resample()</code> → systematic resample +
+      diversity injection, <code>bestEstimate()</code> → weighted-mean pose. Driven internally by
+      <a href="#hdr-localization"><code>Localizer</code></a>'s background task.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="particle filter functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-pf-ctor">ParticleFilter(cfg, field)</a></code></td><td>Constructs a new ParticleFilter object.</td></tr>
+        <tr><td><code><a href="#fn-pf-init">init(start, pos_stddev_in, angle_stddev_rad)</a></code></td><td>Seeds every particle around a known starting pose.</td></tr>
+        <tr><td><code><a href="#fn-pf-predict">predict(delta)</a></code></td><td>Applies an odometry delta to every particle with motion-model noise.</td></tr>
+        <tr><td><code><a href="#fn-pf-update">update(z)</a></code></td><td>Reweights every particle by sensor likelihood.</td></tr>
+        <tr><td><code><a href="#fn-pf-resample">resample(heading_hint_rad)</a></code></td><td>Systematic resample plus random diversity injection.</td></tr>
+        <tr><td><code><a href="#fn-pf-bestestimate">bestEstimate()</a></code></td><td>Weighted-mean pose of the evidence-backed particles.</td></tr>
+        <tr><td><code><a href="#fn-pf-confidenceneff">confidenceNeff()</a></code></td><td>Normalised effective sample size, [0,1].</td></tr>
+        <tr><td><code><a href="#fn-pf-setspeed">setSpeed(in_per_s)</a></code></td><td>Feeds current robot speed to inflate measurement noise for staleness.</td></tr>
+        <tr><td><code><a href="#fn-pf-collapsed">collapsed()</a></code></td><td>True if the last update() found no plausible particle.</td></tr>
+        <tr><td><code><a href="#fn-pf-particles">particles()</a></code></td><td>Read-only access to the current particle set.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-pf-ctor" data-k="particle filter constructor mclconfig fieldmodel">
+      <div class="sig">ParticleFilter(MCLConfig cfg, const FieldModel&amp; field)</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Constructs a new ParticleFilter object.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>cfg</code></td><td><code>MCLConfig</code></td><td>tuning parameters — see §4 in <a href="#config">All parameters</a></td></tr>
+        <tr><td><code>field</code></td><td><code>const FieldModel&amp;</code></td><td>field geometry to raycast against; stored by reference, must outlive the filter</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-pf-init" data-k="particle filter init seed particles">
+      <div class="sig">void init(const Pose&amp; start, float pos_stddev_in = 0.5f, float angle_stddev_rad = 0.03f)</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Seeds every particle around <code>start</code> with independent Gaussian position/heading
+      noise. Called by <a href="#fn-localizer-start"><code>Localizer::start()</code></a> and on
+      every <a href="#fn-localizer-setPose"><code>setPose()</code></a> reseed.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Default</th><th>Description</th></tr>
+        <tr><td><code>start</code></td><td>—</td><td>known starting pose</td></tr>
+        <tr><td><code>pos_stddev_in</code></td><td>0.5</td><td>position spread, inches</td></tr>
+        <tr><td><code>angle_stddev_rad</code></td><td>0.03</td><td>heading spread, radians</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-pf-predict" data-k="particle filter predict motion model thrun alpha noise">
+      <div class="sig">void predict(const OdomDelta&amp; delta)</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Applies the odometry delta to every particle with Thrun motion-model noise (α1–α4). Runs
+      every 40 ms cycle regardless of whether a sensor correction fires this cycle — odometry is
+      the continuous baseline.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>delta</code></td><td><code>const OdomDelta&amp;</code></td><td>one cycle's robot-local motion (forward/lateral/heading)</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-pf-update" data-k="particle filter update sensor likelihood log sum exp collapsed">
+      <div class="sig">void update(const SensorData&amp; z)</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Reweights every particle by sensor likelihood (Gaussian-hit + uniform-random mixture,
+      with an occlusion gate for blocked sensors). Two-pass log-sum-exp — no float underflow
+      regardless of how badly the cloud mismatches. Sets <code>collapsed()</code> when even the
+      best particle scores at the uniform floor on every valid sensor.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>z</code></td><td><code>const SensorData&amp;</code></td><td>raw distance readings (mm) for this cycle</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-pf-resample" data-k="particle filter resample systematic diversity injection heading hint kidnap">
+      <div class="sig">void resample(float heading_hint_rad)</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Systematic resample of the kept fraction + random diversity injection of the rest
+      (<code>random_inject_frac</code>) for kidnap recovery.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>heading_hint_rad</code></td><td><code>float</code></td><td>current trusted heading (IMU) — biases randomly-injected particles' headings so they don't waste diversity on a dimension we already trust</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-pf-bestestimate" data-k="particle filter bestestimate weighted mean circular heading fresh injections">
+      <div class="sig">Pose bestEstimate() const</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Weighted mean position + circular mean heading. Excludes fresh random injections until
+      their first <code>update()</code> — including them at placeholder weight would bias the mean
+      toward field centre by roughly <code>random_inject_frac</code>.</p>
+    </div>
+    <div class="card" id="fn-pf-confidenceneff" data-k="particle filter confidenceneff effective sample size">
+      <div class="sig">float confidenceNeff() const</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Normalised effective sample size in [0,1]. Must be read <strong>before</strong>
+      <a href="#fn-pf-resample"><code>resample()</code></a> — weights are uniform (=1) immediately
+      after resampling.</p>
+    </div>
+    <div class="card" id="fn-pf-setspeed" data-k="particle filter setspeed staleness sigma">
+      <div class="sig">void setSpeed(float in_per_s)</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Inflates the measurement σ for reading staleness while moving. Call once per cycle before
+      <a href="#fn-pf-update"><code>update()</code></a>.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>in_per_s</code></td><td><code>float</code></td><td>current robot speed, inches/second</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-pf-collapsed" data-k="particle filter collapsed accessors">
+      <div class="sig">bool collapsed() const</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Reflects the last <a href="#fn-pf-update"><code>update()</code></a> call — true if no
+      particle plausibly explained the readings. The caller (Localizer's task) must publish
+      confidence 0 when true, not the Neff of the post-collapse uniform reset.</p>
+    </div>
+    <div class="card" id="fn-pf-particles" data-k="particle filter particles vector readonly">
+      <div class="sig">const std::vector&lt;Particle&gt;&amp; particles() const</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Read-only access to the current particle set (pose + weight per hypothesis) — used by the
+      browser simulator's cloud visualization equivalent; not typically needed on-robot.</p>
+    </div>
+    <div class="card" id="fn-mclconfig" data-k="mcl config particles inject alpha sigma occlusion range confidence neff gating parameters struct">
+      <div class="sig">struct MCLConfig { num_particles, random_inject_frac, alpha1..4, sigma_hit_mm, z_hit, z_rand, max_range_mm, min_distance_confidence, occlusion_thresh_mm, robot_half_in, mounts, sensor_update_dist_in, neff_update_thresh, neff_min_cycles, … }</div>
+      <div class="inc">#include "localization/particle_filter.hpp"</div>
+      <p>Every AMCL tuning value. See §4 in <a href="#config">All parameters</a> for each field's
+      default and meaning, and <a href="#tune-mcl">tuning step 5</a> for how to set them (Auto
+      Tune in the simulator, not by hand).</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ localization.hpp ═════════════════════════ -->
+  <section id="hdr-localization" data-sec>
+    <h2>localization/localization.hpp</h2>
+    <div class="card" data-k="localization hpp file description contains prototypes fusion facade">
+      <p>Contains prototypes for <code>lillet::Localizer</code> — the top-level fusion object that
+      owns the <a href="#hdr-field-model"><code>FieldModel</code></a> and
+      <a href="#hdr-particle-filter"><code>ParticleFilter</code></a>, stores references to all
+      sensors, and runs the 40 ms background localization task. All public accessors are
+      thread-safe via an internal mutex.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="localizer functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-localizer-ctor">Localizer(fwd_enc, hor_enc, imu, front_dist, back_dist, left_dist, right_dist, hw_cfg, mcl_cfg)</a></code></td><td>Constructs a new Localizer object.</td></tr>
+        <tr><td><code><a href="#fn-localizer-dtor">~Localizer()</a></code></td><td>Stops the background task and waits (bounded) for it to exit.</td></tr>
+        <tr><td><code><a href="#fn-localizer-addobstacle">addObstacle(r)</a></code></td><td>Adds a fixed field element to the underlying map.</td></tr>
+        <tr><td><code><a href="#fn-localizer-start">start(initial_pose)</a></code></td><td>Initialises and starts the background localization task.</td></tr>
+        <tr><td><code><a href="#fn-localizer-stop">stop()</a></code></td><td>Signals the background task to stop.</td></tr>
+        <tr><td><code><a href="#fn-localizer-setPose">setPose(pose)</a></code></td><td>Thread-safe reseed of the particle cloud at a known pose.</td></tr>
+        <tr><td><code><a href="#fn-localizer-getPose">getPose()</a></code></td><td>Returns the fused pose estimate.</td></tr>
+        <tr><td><code><a href="#fn-localizer-getconfidence">getConfidence()</a></code></td><td>Returns the normalised Neff confidence, [0,1].</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-localizer-ctor" data-k="localizer constructor rotation imu distance hardware config mcl config">
+      <div class="sig">Localizer(pros::Rotation&amp; fwd_enc, pros::Rotation* hor_enc, pros::Imu&amp; imu, pros::Distance&amp; front_dist, pros::Distance&amp; back_dist, pros::Distance&amp; left_dist, pros::Distance&amp; right_dist, const HardwareConfig&amp; hw_cfg = {}, const MCLConfig&amp; mcl_cfg = {})</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Constructs a new Localizer object. Owns the <code>FieldModel</code> and
+      <code>ParticleFilter</code> and stores references to all sensors — all referenced objects
+      must outlive the Localizer.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>fwd_enc</code></td><td><code>pros::Rotation&amp;</code></td><td>forward tracking wheel encoder</td></tr>
+        <tr><td><code>hor_enc</code></td><td><code>pros::Rotation*</code></td><td><code>nullptr</code> if there's no lateral tracking wheel (tank drive — lateral delta is always exactly 0)</td></tr>
+        <tr><td><code>imu</code></td><td><code>pros::Imu&amp;</code></td><td>inertial sensor — trusted absolutely for heading</td></tr>
+        <tr><td><code>front_dist</code>/<code>back_dist</code>/<code>left_dist</code>/<code>right_dist</code></td><td><code>pros::Distance&amp;</code></td><td>one sensor per face, matching <code>MCLConfig::mounts</code></td></tr>
+        <tr><td><code>hw_cfg</code></td><td><code>HardwareConfig</code></td><td>tracking-wheel geometry — built by <code>cfg::makeHwConfig()</code></td></tr>
+        <tr><td><code>mcl_cfg</code></td><td><code>MCLConfig</code></td><td>particle-filter tuning — built by <code>cfg::makeMclConfig()</code></td></tr>
+      </table></div>
+<pre>pros::Rotation fwd_enc(cfg::PORT_FWD_ENCODER);
+pros::Imu      imu(cfg::PORT_IMU);
+pros::Distance d_f(cfg::PORT_DIST_FRONT), d_b(cfg::PORT_DIST_BACK),
+              d_l(cfg::PORT_DIST_LEFT),  d_r(cfg::PORT_DIST_RIGHT);
+lillet::Localizer localizer(fwd_enc, nullptr, imu, d_f, d_b, d_l, d_r,
+                            cfg::makeHwConfig(), cfg::makeMclConfig());</pre>
+    </div>
+    <div class="card" id="fn-localizer-dtor" data-k="localizer destructor stop task bounded wait">
+      <div class="sig">~Localizer()</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Stops the background task and waits (bounded) for it to exit.</p>
+    </div>
+    <div class="card" id="fn-localizer-addobstacle" data-k="localizer addobstacle rect field map">
+      <div class="sig">void addObstacle(const Rect&amp; r)</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Adds a fixed field element to the underlying <code>FieldModel</code>. Call before
+      <a href="#fn-localizer-start"><code>start()</code></a> only.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>r</code></td><td><code>const Rect&amp;</code></td><td>axis-aligned bounding box in field inches</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-localizer-start" data-k="localizer start task background thread 40ms 25hz">
+      <div class="sig">void start(const Pose&amp; initial_pose)</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Zeroes the encoders, sets the IMU heading, seeds the particle cloud, and spawns the 40 ms
+      background task (priority 6, 8 kB stack).</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>initial_pose</code></td><td><code>const Pose&amp;</code></td><td>known starting pose (field inches / radians) — must match where you physically place the robot</td></tr>
+      </table></div>
+<pre>void initialize() {
+    imu.reset(true);                    // ~3 s, robot MUST be still
+    localizer.start({-48, -48, 0});     // known start pose
+}</pre>
+    </div>
+    <div class="card" id="fn-localizer-stop" data-k="localizer stop task background thread">
+      <div class="sig">void stop()</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Signals the background task to stop; returns immediately. The task cleans up on its next
+      cycle.</p>
+    </div>
+    <div class="card" id="fn-localizer-setPose" data-k="localizer setpose reseed thread safe mutex">
+      <div class="sig">void setPose(const Pose&amp; pose)</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Thread-safe reseed: re-centres the particle cloud on a known pose without restarting the
+      background task. Only the task thread touches the particle filter/encoders, so this just
+      posts the request; it takes effect on the task's next cycle (~40 ms), not synchronously. Use
+      when you know for certain where the robot is (e.g. the start of an autonomous routine).</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>pose</code></td><td><code>const Pose&amp;</code></td><td>known pose to reseed at</td></tr>
+      </table></div>
+    </div>
+    <div class="card" id="fn-localizer-getPose" data-k="localizer getpose accessor thread safe">
+      <div class="sig">Pose getPose() const</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Thread-safe accessor. Returns the fused pose estimate (inches / radians CW).</p>
+    </div>
+    <div class="card" id="fn-localizer-getconfidence" data-k="localizer getconfidence neff collapsed thread safe">
+      <div class="sig">float getConfidence() const</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Thread-safe accessor. Normalised Neff in [0,1]; 1 = fully converged. <strong>0 also means
+      a collapsed update</strong> (no particle explained the readings), not just low diversity.</p>
+    </div>
+    <div class="card" id="fn-hardwareconfig" data-k="hardware config wheel radius offsets struct">
+      <div class="sig">struct HardwareConfig { float fwd_wheel_radius_in, hor_wheel_radius_in, fwd_offset_in, hor_offset_in; }</div>
+      <div class="inc">#include "localization/localization.hpp"</div>
+      <p>Tracking-wheel geometry. Built by <code>cfg::makeHwConfig()</code> (gear ratios already
+      folded into the radii). See §2 in <a href="#config">All parameters</a>.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ telemetry.hpp ═════════════════════════ -->
+  <section id="hdr-telemetry" data-sec>
+    <h2>telemetry/telemetry.hpp</h2>
+    <div class="card" data-k="telemetry hpp file description contains prototypes live position terminal">
+      <p>Contains prototypes for <code>lillet::TelemetryReporter</code> — prints one line of pose
+      telemetry (<code>TLM x=.. y=.. h=.. c=.. t=..</code>) to stdout at a fixed rate, visible live
+      in <code>pros terminal</code> even when the Brain is only reachable through the V5
+      Controller. Runs on its own low-priority background task, deliberately separate from
+      <a href="#hdr-localization"><code>Localizer</code></a>'s 40 ms task and any control loop, so
+      a slow stdout write over a wireless link can only delay a telemetry line, never the pose
+      estimate that drives the robot.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="telemetry functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-telemetry-ctor">TelemetryReporter(localizer, rate_ms)</a></code></td><td>Constructs a new TelemetryReporter object.</td></tr>
+        <tr><td><code><a href="#fn-telemetry-dtor">~TelemetryReporter()</a></code></td><td>Stops the background task and waits (bounded) for it to exit.</td></tr>
+        <tr><td><code><a href="#fn-telemetry-start">start()</a></code></td><td>Starts the background printing task.</td></tr>
+        <tr><td><code><a href="#fn-telemetry-stop">stop()</a></code></td><td>Signals the background task to stop.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-telemetry-ctor" data-k="telemetry reporter constructor live view real time position terminal tlm printf">
+      <div class="sig">TelemetryReporter(const Localizer&amp; localizer, int rate_ms)</div>
+      <div class="inc">#include "telemetry/telemetry.hpp"</div>
+      <p>Constructs a new TelemetryReporter object.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+        <tr><td><code>localizer</code></td><td><code>const Localizer&amp;</code></td><td>read via its existing thread-safe <code>getPose()</code>/<code>getConfidence()</code> — no other coupling</td></tr>
+        <tr><td><code>rate_ms</code></td><td><code>int</code></td><td>delay between printed lines; see <code>cfg::TELEMETRY_RATE_MS</code> (§8)</td></tr>
+      </table></div>
+<pre>lillet::TelemetryReporter telemetry(localizer, cfg::TELEMETRY_RATE_MS);
+
+void initialize() {
+    if (cfg::TELEMETRY_ENABLED) telemetry.start();
+}</pre>
+    </div>
+    <div class="card" id="fn-telemetry-dtor" data-k="telemetry reporter destructor stop task bounded">
+      <div class="sig">~TelemetryReporter()</div>
+      <div class="inc">#include "telemetry/telemetry.hpp"</div>
+      <p>Stops the background task and waits (bounded) for it to exit.</p>
+    </div>
+    <div class="card" id="fn-telemetry-start" data-k="telemetry reporter start task">
+      <div class="sig">void start()</div>
+      <div class="inc">#include "telemetry/telemetry.hpp"</div>
+      <p>Starts the background printing task. Safe to call once; a second call while already
+      running is a no-op (mirrors <a href="#fn-localizer-start"><code>Localizer::start()</code></a>).</p>
+    </div>
+    <div class="card" id="fn-telemetry-stop" data-k="telemetry reporter stop task">
+      <div class="sig">void stop()</div>
+      <div class="inc">#include "telemetry/telemetry.hpp"</div>
+      <p>Signals the background task to stop; returns immediately.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ selector.hpp ═════════════════════════ -->
+  <section id="hdr-selector" data-sec>
+    <h2>selector/selector.hpp <span class="tag">pick a routine from the Brain's LCD — no reflash needed</span></h2>
+    <div class="card" data-k="selector hpp file description contains prototypes auton routine picker">
+      <p>Contains prototypes for <code>lillet::AutonSelector</code> and its
+      <code>AutonRoutine</code> struct. LEFT/RIGHT buttons on the Brain's physical LCD cycle the
+      selection; whatever is showing when <code>autonomous()</code> starts is what
+      <code>getSelectedIndex()</code>/<code>getSelectedName()</code>/<code>getSelectedStartPose()</code>
+      return — there's no separate "confirm" step. Requires <code>pros::lcd::initialize()</code>
+      to have already run.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="selector functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-selector-ctor">AutonSelector(routines, display_line = 5, onSelect = nullptr)</a></code></td><td>Constructs a new AutonSelector object.</td></tr>
+        <tr><td><code><a href="#fn-selector-dtor">~AutonSelector()</a></code></td><td>Stops the background task and waits (bounded) for it to exit.</td></tr>
+        <tr><td><code><a href="#fn-selector-start">start()</a></code></td><td>Draws the initial selection and starts polling for button input.</td></tr>
+        <tr><td><code><a href="#fn-selector-stop">stop()</a></code></td><td>Signals the background task to stop.</td></tr>
+        <tr><td><code><a href="#fn-selector-getindex">getSelectedIndex()</a></code></td><td>Index of the currently-selected routine.</td></tr>
+        <tr><td><code><a href="#fn-selector-getname">getSelectedName()</a></code></td><td>Display name of the currently-selected routine.</td></tr>
+        <tr><td><code><a href="#fn-selector-getstartpose">getSelectedStartPose()</a></code></td><td>Start pose of the currently-selected routine.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-selector-ctor" data-k="auton selector constructor autonomous selector lcd buttons choose routine match no reflash different start position each auton warm up amcl live reseed on change">
+      <div class="sig">explicit AutonSelector(std::vector&lt;AutonRoutine&gt; routines, int display_line = 5, std::function&lt;void(const Pose&amp;)&gt; onSelect = nullptr)</div>
+      <div class="inc">#include "selector/selector.hpp"</div>
+      <p>Constructs a new AutonSelector object. Polls <code>pros::lcd::read_buttons()</code>
+      (debounced) on its own low-priority background task — same <code>start()</code>/
+      <code>stop()</code>/destructor lifecycle as <code>Localizer</code> and
+      <code>TelemetryReporter</code>.</p>
+      <div class="tblwrap"><table>
+        <tr><th>Param</th><th>Default</th><th>Description</th></tr>
+        <tr><td><code>routines</code></td><td>—</td><td>the choices, e.g. <code>{{"Right AWP", {48,-48,90}}, {"Left AWP", {-48,-48,-90}}}</code></td></tr>
+        <tr><td><code>display_line</code></td><td>5</td><td>which <code>pros::lcd</code> line (0–7) to draw the selector on</td></tr>
+        <tr><td><code>onSelect</code></td><td><code>nullptr</code></td><td>fires with the newly-picked routine's <code>startPose</code> every time LEFT/RIGHT changes the selection — wire it to <code>localizer.setPose()</code> so AMCL keeps warming up at the right spot live, even if you flip through routines after your first choice. <strong>Not</strong> fired for the initial default selection or from <code>start()</code> — read <code>getSelectedStartPose()</code> yourself for the pose to pass to <code>localizer.start()</code>.</td></tr>
+      </table></div>
+<pre>lillet::AutonSelector autonSelector(
+    {
+        {"Example Path", {-48.0f, -48.0f, 0.0f}},
+        {"Do Nothing",   {-48.0f, -48.0f, 0.0f}},
+    },
+    /*display_line=*/5,
+    [](const lillet::Pose&amp; p) { localizer.setPose(p); }   // live reseed on change
+);
+
+void initialize() {
+    pros::lcd::initialize();
+    autonSelector.start();          // interactive right away — even during IMU calibration
+    ...
+    localizer.start(autonSelector.getSelectedStartPose());  // seed the initial choice
+}
+void autonomous() {
+    switch (autonSelector.getSelectedIndex()) {
+        case 0: autonExamplePath(); break;   // no chassis.setPose() needed —
+        case 1: /* Do Nothing */    break;   // already seeded + converging
+    }
+}</pre>
+      <div class="note">Deliberately no "confirm" step and no gating on match phase — the
+      callback fires on every LEFT/RIGHT press, whenever it happens (including during driver
+      practice, not just pre-match).</div>
+      <div class="note warn">The <code>autonomous()</code> fallback exists so a forgotten
+      selection doesn't leave the robot with zero localization, but it gets none of AMCL's warm-up
+      convergence time — always touch LEFT/RIGHT once before a real match even if you're happy
+      with the default routine, so AMCL has time to settle first.</div>
+    </div>
+    <div class="card" id="fn-selector-dtor" data-k="auton selector destructor stop task bounded">
+      <div class="sig">~AutonSelector()</div>
+      <div class="inc">#include "selector/selector.hpp"</div>
+      <p>Stops the background task and waits (bounded) for it to exit.</p>
+    </div>
+    <div class="card" id="fn-selector-start" data-k="auton selector start draws initial selection polling">
+      <div class="sig">void start()</div>
+      <div class="inc">#include "selector/selector.hpp"</div>
+      <p>Draws the initial selection and starts polling for button input.</p>
+    </div>
+    <div class="card" id="fn-selector-stop" data-k="auton selector stop task">
+      <div class="sig">void stop()</div>
+      <div class="inc">#include "selector/selector.hpp"</div>
+      <p>Signals the background task to stop; returns immediately.</p>
+    </div>
+    <div class="card" id="fn-selector-getindex" data-k="auton selector getselectedindex">
+      <div class="sig">int getSelectedIndex() const</div>
+      <div class="inc">#include "selector/selector.hpp"</div>
+      <p>Index into the <code>routines</code> vector passed to the constructor for whichever
+      routine is currently showing on the LCD.</p>
+    </div>
+    <div class="card" id="fn-selector-getname" data-k="auton selector getselectedname">
+      <div class="sig">const std::string&amp; getSelectedName() const</div>
+      <div class="inc">#include "selector/selector.hpp"</div>
+      <p>Display name of the currently-selected routine.</p>
+    </div>
+    <div class="card" id="fn-selector-getstartpose" data-k="auton selector getselectedstartpose">
+      <div class="sig">const Pose&amp; getSelectedStartPose() const</div>
+      <div class="inc">#include "selector/selector.hpp"</div>
+      <p>Start pose of the currently-selected routine — pass this to
+      <a href="#fn-localizer-start"><code>Localizer::start()</code></a> to seed the initial
+      choice.</p>
+    </div>
+    <div class="card" id="fn-autonroutine" data-k="auton routine struct name start pose per routine">
+      <div class="sig">struct AutonRoutine { std::string name; Pose startPose; }</div>
+      <div class="inc">#include "selector/selector.hpp"</div>
+      <p>One selectable routine: a display name plus the pose the robot must be physically
+      <strong>placed</strong> at for it. Different matches often start from different spots — each
+      routine carries its own, so switching routines can't leave AMCL warming up at the wrong one.</p>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ robot_config.hpp ═════════════════════════ -->
+  <section id="hdr-robot-config" data-sec>
+    <h2>robot_config.hpp <span class="tag">the cfg namespace — THE tuning file</span></h2>
+    <div class="card" data-k="robot config hpp file description contains prototypes cfg namespace">
+      <p>Every hardware port, geometry constant, and tuning value for the whole robot lives in
+      this one file (namespace <code>cfg</code>) — §1–§8, see <a href="#config">All parameters</a>
+      for the full constant-by-constant reference and <a href="#tuning">the tuning guide</a> for
+      how to set each one. This header also declares four factory functions that build the plain
+      structs the rest of lillet consumes.</p>
+    </div>
+
+    <h3>Functions</h3>
+    <div class="card" data-k="robot config functions summary list">
+      <div class="tblwrap"><table>
+        <tr><th>Function</th><th></th></tr>
+        <tr><td><code><a href="#fn-cfg-makehwconfig">makeHwConfig()</a></code></td><td>Builds a HardwareConfig from the §2 tracking-wheel constants.</td></tr>
+        <tr><td><code><a href="#fn-cfg-makemclconfig">makeMclConfig()</a></code></td><td>Builds an MCLConfig from the §4/§4b particle-filter constants.</td></tr>
+        <tr><td><code><a href="#fn-cfg-makedrivetrainspec">makeDrivetrainSpec()</a></code></td><td>Builds a DrivetrainSpec from the §5 drivetrain constants.</td></tr>
+        <tr><td><code><a href="#fn-cfg-makemotionconfig">makeMotionConfig()</a></code></td><td>Builds a MotionConfig from the §6/§7 motion-controller constants.</td></tr>
+      </table></div>
+    </div>
+
+    <h3>Function documentation</h3>
+    <div class="card" id="fn-cfg-makehwconfig" data-k="cfg makehwconfig factory hardware config">
+      <div class="sig"><span class="ns">cfg::</span>HardwareConfig makeHwConfig()</div>
+      <div class="inc">#include "robot_config.hpp"</div>
+      <p>Builds a <a href="#fn-hardwareconfig"><code>lillet::HardwareConfig</code></a> from the §2
+      tracking-wheel constants (<code>FWD_WHEEL_RADIUS_IN</code>, <code>FWD_OFFSET_IN</code>,
+      <code>FWD_GEAR_RATIO</code>, and the optional horizontal-wheel equivalents), folding gear
+      ratios into the effective radii. Pass the result straight into
+      <a href="#fn-localizer-ctor"><code>Localizer</code></a>'s constructor.</p>
+    </div>
+    <div class="card" id="fn-cfg-makemclconfig" data-k="cfg makemclconfig factory particle filter config">
+      <div class="sig"><span class="ns">cfg::</span>MCLConfig makeMclConfig()</div>
+      <div class="inc">#include "robot_config.hpp"</div>
+      <p>Builds an <a href="#fn-mclconfig"><code>lillet::MCLConfig</code></a> from every §4/§4b
+      constant (particle count, motion/measurement noise, sensor-limit gating, and per-sensor
+      mounting geometry). Pass the result straight into
+      <a href="#fn-localizer-ctor"><code>Localizer</code></a>'s constructor.</p>
+    </div>
+    <div class="card" id="fn-cfg-makedrivetrainspec" data-k="cfg makedrivetrainspec factory drivetrain spec">
+      <div class="sig"><span class="ns">cfg::</span>DrivetrainSpec makeDrivetrainSpec()</div>
+      <div class="inc">#include "robot_config.hpp"</div>
+      <p>Builds a <a href="#fn-drivetrainspec"><code>lillet::DrivetrainSpec</code></a> from the §5
+      drivetrain constants (<code>DRIVE_TRACK_WIDTH_IN</code>, <code>DRIVE_WHEEL_DIAM_IN</code>,
+      <code>DRIVE_RPM</code>). Pass the result straight into
+      <a href="#fn-chassis-ctor"><code>Chassis</code></a>'s constructor.</p>
+    </div>
+    <div class="card" id="fn-cfg-makemotionconfig" data-k="cfg makemotionconfig factory motion config">
+      <div class="sig"><span class="ns">cfg::</span>MotionConfig makeMotionConfig()</div>
+      <div class="inc">#include "robot_config.hpp"</div>
+      <p>Builds a <a href="#fn-motionconfig"><code>lillet::MotionConfig</code></a> from every
+      §6/§7 constant (carrot/turn-profile gains and the driver-control expo curve). Pass the
+      result straight into <a href="#fn-chassis-ctor"><code>Chassis</code></a>'s constructor.</p>
+    </div>
+  </section>
+
+
+  <!-- ═════════════════════════ FILES ═════════════════════════ -->
+  <section id="files" data-sec>
+    <h2>Files</h2>
+    <div class="card" data-k="files index header source listing">
+      <p>Every custom file in the project (vendored PROS/LVGL headers under
+      <code>include/pros/</code> and <code>include/liblvgl/</code> are omitted — see their own docs).</p>
+      <div class="tblwrap"><table>
+        <tr><th>File</th><th>Description</th></tr>
+        <tr><td><code>include/robot_config.hpp</code></td><td>★ the tuning file — every port and parameter, §1–§8, no .cpp</td></tr>
+        <tr><td><code>include/localization/types.hpp</code></td><td><code>Pose</code>, <code>OdomDelta</code>, <code>SensorData</code>, <code>normalizeAngle()</code>, unit constants</td></tr>
+        <tr><td><code>include/localization/field_model.hpp</code> / <code>src/localization/field_model.cpp</code></td><td><code>FieldModel</code>, <code>Rect</code>, <code>SensorMount</code>/<code>SensorMounts</code> — field geometry + ray casting</td></tr>
+        <tr><td><code>include/localization/particle_filter.hpp</code> / <code>src/localization/particle_filter.cpp</code></td><td><code>ParticleFilter</code>, <code>MCLConfig</code> — the AMCL core</td></tr>
+        <tr><td><code>include/localization/localization.hpp</code> / <code>src/localization/localization.cpp</code></td><td><code>Localizer</code>, <code>HardwareConfig</code> — fusion + background task + sensor reading/gating</td></tr>
+        <tr><td><code>include/motion/chassis.hpp</code> / <code>src/motion/chassis.cpp</code></td><td><code>Chassis</code>, <code>MoveParams</code> — the motion controller</td></tr>
+        <tr><td><code>include/motion/chassis_config.hpp</code></td><td><code>DrivetrainSpec</code>, <code>MotionConfig</code> — plain tuning structs</td></tr>
+        <tr><td><code>include/motion/drive_curve.hpp</code> / <code>src/motion/drive_curve.cpp</code></td><td><code>DriveCurve</code>, <code>ExpoDriveCurve</code> — driver-control joystick shaping</td></tr>
+        <tr><td><code>include/motion/pid.hpp</code> / <code>src/motion/pid.cpp</code></td><td><code>PID</code> — subsystem utility, not used by Chassis</td></tr>
+        <tr><td><code>include/motion/exit_condition.hpp</code> / <code>src/motion/exit_condition.cpp</code></td><td><code>ExitCondition</code> — settle-detector utility, not used by Chassis</td></tr>
+        <tr><td><code>include/telemetry/telemetry.hpp</code> / <code>src/telemetry/telemetry.cpp</code></td><td><code>TelemetryReporter</code> — live position printf for <code>pros terminal</code> / the live-view webpage</td></tr>
+        <tr><td><code>include/selector/selector.hpp</code> / <code>src/selector/selector.cpp</code></td><td><code>AutonSelector</code> — LCD-button autonomous-routine picker</td></tr>
+        <tr><td><code>src/main.cpp</code></td><td>hardware wiring + <code>autonomous()</code> path (paste simulator exports here)</td></tr>
+        <tr><td><code>simulator/index.html</code></td><td>browser design/tuning tool — kinematic, 1:1 port of the C++ algorithms</td></tr>
+        <tr><td><code>simulator/sim_tests.mjs</code></td><td>automated test suite (<code>node sim_tests.mjs</code>) — the behavioural oracle</td></tr>
+        <tr><td><code>simulator/live_server.mjs</code></td><td>local bridge: spawns <code>pros terminal</code>, parses <code>TLM</code> lines, serves them over HTTP polling (Node built-ins only)</td></tr>
+        <tr><td><code>simulator/live.html</code></td><td>standalone live-view webpage — polls <code>live_server.mjs</code> and draws the robot's real-time position</td></tr>
+        <tr><td><code>simulator/live_tests.mjs</code></td><td>unit tests for the telemetry-line parser (<code>node live_tests.mjs</code>) — no robot needed</td></tr>
+        <tr><td><code>docs/docs.html</code></td><td>this page</td></tr>
+        <tr><td><code>PROJECT_OVERVIEW.md</code></td><td>end-to-end narrative: the problem, the algorithms, the why</td></tr>
+        <tr><td><code>LIBRARY_CONTEXT.md</code></td><td>exhaustive from-source reference: every struct field and function body explained</td></tr>
+        <tr><td><code>.github/workflows/ci.yml</code></td><td>runs both Node test suites + a full firmware build on every push/PR</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ LEMLIB MAP ═════════════════════════ -->
+  <section id="lemlib" data-sec>
+    <h2>LemLib → lillet parameter map</h2>
+    <div class="card" data-k="lemlib mapping equivalent migration drivetrain pid chase power slew tracking wheel">
+      <p>Call shapes (<code>moveToPose</code>, <code>moveToPoint</code>,
+      <code>turnToHeading</code>, <code>turnToPoint</code>, <code>setPose</code>) are identical.
+      Tuning maps as follows:</p>
+      <div class="tblwrap"><table>
+        <tr><th>LemLib</th><th>lillet</th><th>Notes</th></tr>
+        <tr><td>Drivetrain <code>trackWidth</code></td><td><code>DRIVE_TRACK_WIDTH_IN</code></td><td>same</td></tr>
+        <tr><td>Drivetrain <code>wheelDiameter</code></td><td><code>DRIVE_WHEEL_DIAM_IN</code></td><td>same</td></tr>
+        <tr><td>Drivetrain <code>rpm</code></td><td><code>DRIVE_RPM</code></td><td>wheel rpm incl. external ratio</td></tr>
+        <tr><td>Drivetrain <code>horizontalDrift</code></td><td>—</td><td>not needed; kinematic controller</td></tr>
+        <tr><td>TrackingWheel <code>diameter</code></td><td><code>FWD_WHEEL_RADIUS_IN</code></td><td><strong>radius</strong>, not diameter!</td></tr>
+        <tr><td>TrackingWheel <code>offset</code></td><td><code>FWD_OFFSET_IN</code></td><td>+ = left of centre</td></tr>
+        <tr><td>TrackingWheel <code>gearRatio</code></td><td><code>FWD_GEAR_RATIO</code></td><td>folded into effective radius</td></tr>
+        <tr><td>lateral PID <code>kP…slew</code></td><td><code>MTN_DECEL_IN</code> + speed caps</td><td>proportional-to-distance ramp instead of PID</td></tr>
+        <tr><td>angular PID <code>kP…</code></td><td><code>MTN_ANG_KP</code>, <code>MTN_TURN_ACCEL_DEG_S2</code></td><td>P while carrot-chasing; kinematic profile for turns</td></tr>
+        <tr><td><code>smallError/largeError</code> + timeouts</td><td><code>MTN_EXIT_*</code>, <code>earlyExitRange</code>, move timeout</td><td>single-threshold + timeout</td></tr>
+        <tr><td>boomerang <code>lead</code> / chasePower</td><td><code>MTN_LEAD</code></td><td>same idea</td></tr>
+        <tr><td><code>ExpoDriveCurve(db, min, g)</code></td><td><code>MTN_DRIVE_CURVE_*</code></td><td>same equation</td></tr>
+        <tr><td>odom <code>setPose/getPose</code></td><td>same names</td><td>backed by AMCL, not raw odom</td></tr>
+        <tr><td>—</td><td>all of §4 / §4b</td><td>the particle filter — LemLib has no equivalent</td></tr>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- ═════════════════════════ SIM & TESTS ═════════════════════════ -->
+  <section id="sim" data-sec>
+    <h2>Simulator &amp; tests</h2>
+    <div class="card" data-k="simulator browser drive mode auton plan auto tune kidnap sliders export">
+      <div class="sig">simulator/index.html <span class="tag">open in Chrome/Edge</span></div>
+      <p><strong>Drive mode</strong>: WASD + arrows, watch the filter converge; Kidnap button
+      tests recovery. <strong>Auton Plan mode</strong>: click waypoints, set headings/speeds,
+      Run Path, then <em>Copy LemLib Code</em> → paste into <code>autonomous()</code>. Every
+      config parameter has a live slider — including sensor max range, IMU drift, and
+      encoder/sensor noise. Auto Tune hill-climbs the filter parameters under realistic
+      conditions (range cap + encoder noise + deployment gating, 3 rollouts per candidate).</p>
+      <div class="note">The sim is deliberately <strong>kinematic</strong> — it's a path-design
+      and filter-tuning tool, not a physics simulator.</div>
+    </div>
+    <div class="card" data-k="tests node sim_tests regression oracle run">
+      <div class="sig">node simulator/sim_tests.mjs <span class="tag">19 tests</span></div>
+      <p>Runs the sim's actual script headless with a seeded RNG: raycast oracles, convergence
+      and kidnap recovery under the 2 m cap, collapse flag, turn stall re-lock, correction
+      gating, IMU drift, sensor mounts/base readings, path regression, tuner sanity. JS and C++
+      are 1:1 ports, so this suite is the behavioural oracle for the robot code —
+      <strong>run it after any library or tuning change</strong>. Firmware check:
+      <code>pros make</code> (or the toolchain's <code>make</code>) in <code>4613B/</code>.</p>
+    </div>
+    <div class="card" data-k="ci github actions automated continuous integration push pull request">
+      <div class="sig">.github/workflows/ci.yml <span class="tag">runs on every push/PR</span></div>
+      <p>Both Node suites (<code>sim_tests.mjs</code>, <code>live_tests.mjs</code>) plus a full
+      <code>make all</code> firmware build run automatically — no need to remember to run them by
+      hand. ARM toolchain via <code>carlosperate/arm-none-eabi-gcc-action</code> (defaults to the
+      latest release, matching the recent GCC the project's <code>CXX_STANDARD = gnu++26</code>
+      needs).</p>
+    </div>
+
+    <h3 id="tune-telemetry">Live telemetry — terminal &amp; webpage</h3>
+    <div class="card" data-k="live telemetry terminal webpage real time position pros terminal controller wireless see robot movement">
+      <p>The V5 Brain is never wired directly to a computer — only the V5 Controller is, tethered
+      via USB while wirelessly paired to the Brain. PROS already relays a running program's stdout
+      through that link with zero extra setup, so <code>lillet::TelemetryReporter</code> (§8,
+      <a href="#api">API reference</a>) just <code>printf</code>s pose telemetry into it.</p>
+      <ol class="steps">
+        <li><strong>Terminal (minimum bar):</strong> plug the V5 Controller into the PC via USB
+            (wirelessly paired to the Brain, robot on), run <code>pros terminal</code>. Watch
+            <code>TLM x=.. y=.. h=.. c=.. t=..</code> lines print live during
+            <code>opcontrol()</code> and <code>autonomous()</code>.</li>
+        <li><strong>Webpage (stretch goal):</strong> run
+            <code>node simulator/live_server.mjs</code> (spawns <code>pros terminal</code> itself
+            and serves a live view — no npm install, Node built-ins only), then open
+            <code>http://localhost:8973/live.html</code>. The page polls every 150 ms and draws
+            the robot's live position on a field canvas; it shows "NO SIGNAL" if the feed goes
+            stale or the server isn't running.</li>
+      </ol>
+      <div class="note">Ships enabled by default (<code>TELEMETRY_ENABLED = true</code>,
+      §8). It's a fully separate low-priority task from <code>Localizer</code>'s — a slow
+      stdout write over the wireless link can only delay a telemetry line, never the pose update
+      that drives the robot — but verify no control-loop hitching on real hardware before trusting
+      that at competition, same as any other new on-robot behaviour.</div>
+    </div>
+  </section>
+
+  <div id="noresults" class="note warn hidden">No matches — try fewer words, or search for a
+  symptom like <code>overshoot</code> or a name like <code>sigma_hit_mm</code>.</div>
+</main>
+</div>
+
+<script>
+'use strict';
+const q = document.getElementById('q');
+const cards = Array.from(document.querySelectorAll('.card'));
+const secs = Array.from(document.querySelectorAll('section[data-sec]'));
+const count = document.getElementById('count');
+const noRes = document.getElementById('noresults');
+
+function applyFilter() {
+  const terms = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let shown = 0;
+  for (const c of cards) {
+    const hay = (c.textContent + ' ' + (c.dataset.k || '')).toLowerCase();
+    const hit = terms.every(t => hay.includes(t));
+    c.classList.toggle('hidden', terms.length > 0 && !hit);
+    if (terms.length === 0 || hit) shown++;
+  }
+  for (const s of secs) {
+    const anyVisible = s.querySelectorAll('.card:not(.hidden)').length > 0;
+    s.classList.toggle('hidden', terms.length > 0 && !anyVisible);
+  }
+  count.style.display = terms.length ? 'block' : 'none';
+  count.textContent = terms.length ? shown + ' matching entr' + (shown === 1 ? 'y' : 'ies') : '';
+  noRes.classList.toggle('hidden', !(terms.length && shown === 0));
+}
+q.addEventListener('input', applyFilter);
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+  if (e.key === 'Escape' && document.activeElement === q) { q.value = ''; applyFilter(); q.blur(); }
+});
+</script>
+</body>
+</html>
