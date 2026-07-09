@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lillet — live robot view</title>
+<style>
+  :root { --bg:#0b1220; --card:#16213a; --line:#24324f; --text:#dbe4f5; --dim:#8fa2c4;
+          --accent:#4fc3f7; --good:#6ee7b7; --bad:#f87171; }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font:14px/1.5 system-ui, sans-serif;
+         display:flex; min-height:100vh; }
+  #field { border-radius: 10px; background:#0d1526; border:1px solid var(--line); }
+  .side { width: 260px; flex:0 0 260px; padding: 20px; border-left:1px solid var(--line); }
+  main { flex:1; display:flex; align-items:center; justify-content:center; padding: 20px; }
+  h1 { font-size: 16px; color: var(--accent); margin-bottom: 4px; }
+  h1 small { display:block; color: var(--dim); font-weight: 400; font-size: 11px; margin-top: 4px; }
+  .stat { margin: 14px 0; }
+  .stat .lbl { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .stat .val { font-size: 22px; font-family: ui-monospace, Consolas, monospace; }
+  #banner { position: fixed; inset: 0; display:none; align-items:center; justify-content:center;
+            background: rgba(11,18,32,0.85); font-size: 22px; color: var(--bad);
+            font-weight: 700; letter-spacing: 2px; z-index: 5; }
+  #banner.show { display:flex; }
+</style>
+</head>
+<body>
+<main>
+  <canvas id="field" width="640" height="640"></canvas>
+</main>
+<div class="side">
+  <h1>lillet — live view<small>polls simulator/live_server.mjs every 150 ms</small></h1>
+  <div class="stat"><div class="lbl">Position</div><div class="val" id="v-xy">—</div></div>
+  <div class="stat"><div class="lbl">Heading</div><div class="val" id="v-h">—</div></div>
+  <div class="stat"><div class="lbl">Confidence</div><div class="val" id="v-c">—</div></div>
+  <div class="stat"><div class="lbl">Robot clock</div><div class="val" id="v-t">—</div></div>
+</div>
+<div id="banner">NO SIGNAL</div>
+
+<script>
+'use strict';
+// Field constants duplicated intentionally from simulator/index.html (kept in
+// sync manually) — do NOT refactor index.html to share this; the kinematic
+// tuning sim stays untouched per project convention.
+const FIELD_H = 71.0;   // half-width of inner field, inches
+const ROBOT_H = 7.0;    // robot half-size, inches
+const GOALS = [
+  { x: -48, y: -24 }, { x: -24, y: -48 }, { x: 24, y: 48 }, { x: 48, y: 24 },
+  { x: -24, y: 48 }, { x: 48, y: -24 }, { x: 24, y: -48 }, { x: -48, y: 24 },
+  { x: 0, y: 0 },
+];
+
+const canvas = document.getElementById('field');
+const ctx = canvas.getContext('2d');
+const SCALE = canvas.width / (FIELD_H * 2 + 10);
+const tc = (fx, fy) => [canvas.width / 2 + fx * SCALE, canvas.height / 2 - fy * SCALE];
+
+function drawField() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const [x0, y0] = tc(-FIELD_H, FIELD_H);
+  ctx.strokeStyle = '#3a4a6b'; ctx.lineWidth = 2;
+  ctx.strokeRect(x0, y0, FIELD_H * 2 * SCALE, FIELD_H * 2 * SCALE);
+  ctx.fillStyle = '#2a3a5b';
+  for (const g of GOALS) {
+    const [gx, gy] = tc(g.x, g.y);
+    ctx.fillRect(gx - 5 * SCALE, gy - 5 * SCALE, 10 * SCALE, 10 * SCALE);
+  }
+}
+
+function drawRobot(x, y, thetaDeg, confidence) {
+  const [px, py] = tc(x, y);
+  const rad = thetaDeg * Math.PI / 180;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(rad); // canvas rotation is CW for +angle, matching CW-from-north
+  const s = ROBOT_H * SCALE;
+  const hue = Math.round(confidence * 140); // 0=red, 140=green
+  ctx.fillStyle = `hsla(${hue}, 70%, 55%, 0.85)`;
+  ctx.strokeStyle = '#dbe4f5'; ctx.lineWidth = 2;
+  ctx.fillRect(-s, -s, s * 2, s * 2);
+  ctx.strokeRect(-s, -s, s * 2, s * 2);
+  // heading tick toward "front" (+y in field frame, which after rotation is up)
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -s * 1.4);
+  ctx.strokeStyle = '#0b1220'; ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function setText(id, v) { document.getElementById(id).textContent = v; }
+
+let lastGoodAt = 0;
+async function poll() {
+  try {
+    const res = await fetch('/telemetry', { cache: 'no-store' });
+    const data = await res.json();
+    drawField();
+    if (data && !data.stale) {
+      lastGoodAt = Date.now();
+      document.getElementById('banner').classList.remove('show');
+      drawRobot(data.x, data.y, data.theta, data.confidence);
+      setText('v-xy', `${data.x.toFixed(1)}", ${data.y.toFixed(1)}"`);
+      setText('v-h', `${data.theta.toFixed(1)}°`);
+      setText('v-c', data.confidence.toFixed(2));
+      setText('v-t', `${data.robotMs} ms`);
+    } else {
+      document.getElementById('banner').classList.add('show');
+    }
+  } catch {
+    drawField();
+    document.getElementById('banner').classList.add('show');
+  }
+}
+
+drawField();
+setInterval(poll, 150);
+</script>
+</body>
+</html>

@@ -1,0 +1,3207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VEX Override — AMCL Localisation Simulator</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════
+   Design tokens — "instrument console" system. One accent (graphite-slate,
+   a deliberate cool-grey, not a bare #666), spent only on: the title rule,
+   card-title ticks, the active toggle/primary button, range thumbs, and
+   focus rings. Everything else is neutral ink on paper. The "Blue Theme"
+   button swaps the whole token set for the original navy/blue palette —
+   components below reference tokens, never literal colors, so the swap
+   is a single block instead of one override per rule.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg:            #f3f4f6;
+  --surface:       #ffffff;
+  --surface-2:     #e9ebee;   /* inset tracks, kbd caps, chips */
+  --border:        #dbdfe4;
+  --border-strong: #c2c8d0;
+  --ink:           #14181d;
+  --ink-2:         #5a6472;   /* secondary labels */
+  --ink-3:         #8991a0;   /* tertiary / captions */
+  --accent:        #39434f;
+  --accent-2:      #4c5765;   /* hover */
+  --accent-ink:    #ffffff;   /* text on accent */
+  --danger-bg: var(--surface); --danger-border: var(--accent); --danger-ink: var(--accent); --danger-style: dashed;
+  --success-bg: var(--surface); --success-border: var(--accent); --success-ink: var(--accent); --success-style: solid;
+  --stat-warn-ink: var(--ink); --stat-warn-bg: var(--surface-2);
+  --stat-bad-ink:  var(--ink); --stat-bad-bg:  var(--border-strong);
+  --font-display: ui-monospace, 'Cascadia Code', 'SFMono-Regular', Menlo, Consolas, monospace;
+  --font-body:    -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ease: cubic-bezier(.2,.7,.3,1);
+}
+body.theme-blue {
+  --bg:            #111827;
+  --surface:       #1f2937;
+  --surface-2:     #374151;
+  --border:        #374151;
+  --border-strong: #4b5563;
+  --ink:           #d1d5db;
+  --ink-2:         #9ca3af;
+  --ink-3:         #6b7280;
+  --accent:        #1d4ed8;
+  --accent-2:      #2563eb;
+  --accent-ink:    #bfdbfe;
+  --danger-bg: #7f1d1d; --danger-border: #991b1b; --danger-ink: #fca5a5; --danger-style: solid;
+  --success-bg: #065f46; --success-border: #047857; --success-ink: #6ee7b7; --success-style: solid;
+  --stat-warn-ink: #fbbf24; --stat-warn-bg: transparent;
+  --stat-bad-ink:  #f87171; --stat-bad-bg:  transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+#titlebar {
+  flex-shrink: 0;
+  height: 72px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 2px solid var(--accent);
+}
+#titlebar .brand {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 700; letter-spacing: 0.5px; color: var(--ink);
+}
+#titlebar .brand .thin { font-weight: 400; color: var(--ink-2); }
+#titlebar .tagline {
+  font-family: var(--font-display); font-size: 9px; font-weight: 500;
+  letter-spacing: 2.5px; text-transform: uppercase; color: var(--ink-3);
+}
+
+#main { display: flex; flex: 1; gap: 12px; padding: 12px; align-items: flex-start; overflow: hidden; }
+#canvas-wrap { position: relative; flex-shrink: 0; }
+#field { display: block; border-radius: 4px; cursor: crosshair; border: 1px solid var(--border); }
+#pause-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: none; align-items: center; justify-content: center;
+  border-radius: 4px;
+  font-family: var(--font-display);
+  font-size: 32px; font-weight: 700; color: #fff; letter-spacing: 6px;
+}
+#pause-overlay.show { display: flex; }
+
+#panel {
+  flex: 1; min-width: 0;
+  column-width: 232px;
+  column-gap: 10px;
+  overflow-y: auto; max-height: calc(100vh - 24px - 72px); padding-right: 4px;
+}
+#panel::-webkit-scrollbar { width: 4px; }
+#panel::-webkit-scrollbar-track { background: transparent; }
+#panel::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  break-inside: avoid;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 2px rgba(20,24,29,0.05);
+}
+.card-title {
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--font-display);
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.6px;
+  color: var(--ink-3); margin-bottom: 9px;
+}
+.card-title::before { content: ''; width: 9px; height: 2px; background: var(--accent); flex-shrink: 0; }
+
+.stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; margin-bottom: 5px;
+}
+.stat-lbl { color: var(--ink-2); }
+.stat-val {
+  font-family: var(--font-display); font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.stat-val.good { color: var(--ink); }
+.stat-val.warn {
+  color: var(--stat-warn-ink); background: var(--stat-warn-bg);
+  font-weight: 700; padding: 0 5px; border-radius: 3px;
+}
+.stat-val.bad {
+  color: var(--stat-bad-ink); background: var(--stat-bad-bg);
+  font-weight: 700; padding: 0 5px; border-radius: 3px;
+}
+
+.conf-bar { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; margin-top: 5px; }
+.conf-fill { height: 100%; border-radius: 3px; transition: width 0.15s var(--ease), background 0.15s var(--ease); }
+
+.toggle-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 7px; }
+.tbtn {
+  flex: 1 0 calc(50% - 3px);
+  background: var(--surface-2); color: var(--ink-2);
+  font-family: var(--font-body);
+  border: 1px solid var(--border-strong); border-radius: 4px;
+  padding: 5px 6px; font-size: 11px; cursor: pointer;
+  text-align: center; transition: background 0.12s var(--ease), color 0.12s var(--ease), transform 0.08s var(--ease);
+}
+.tbtn:hover { border-color: var(--accent); }
+.tbtn:active { transform: translateY(1px); }
+.tbtn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+
+.ctrl-row { display: flex; align-items: center; gap: 7px; font-size: 11px; margin-bottom: 7px; }
+.ctrl-lbl { color: var(--ink-2); min-width: 82px; flex-shrink: 0; }
+input[type=range] {
+  flex: 1; min-width: 0; height: 4px;
+  -webkit-appearance: none; appearance: none;
+  background: var(--surface-2); border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border-strong);
+  border-radius: 50%; cursor: pointer;
+  transition: background 0.12s var(--ease);
+}
+input[type=range]::-webkit-slider-thumb:hover { background: var(--accent-2); }
+.ctrl-val {
+  font-family: var(--font-display); font-variant-numeric: tabular-nums;
+  font-size: 11px; color: var(--ink); min-width: 56px; text-align: right; flex-shrink: 0;
+}
+
+.btn {
+  display: block; width: 100%;
+  background: var(--surface); color: var(--ink);
+  font-family: var(--font-body);
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  padding: 7px 10px; font-size: 12px; cursor: pointer;
+  margin-bottom: 6px; text-align: center;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease), transform 0.08s var(--ease);
+}
+.btn:hover { background: var(--surface-2); border-color: var(--accent); }
+.btn:active { transform: translateY(1px); }
+.btn.danger  { background: var(--danger-bg); border: 2px var(--danger-style) var(--danger-border); color: var(--danger-ink); font-weight: 700; }
+.btn.success { background: var(--success-bg); border: 2px var(--success-style) var(--success-border); color: var(--success-ink); font-weight: 700; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+
+.key-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.key-row { font-size: 11px; color: var(--ink-3); }
+kbd {
+  background: var(--surface-2); border: 1px solid var(--border-strong);
+  border-radius: 3px; padding: 1px 5px; font-family: var(--font-display);
+  font-size: 10px; color: var(--ink);
+}
+
+.legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.legend-sq  { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: middle; }
+.hidden { display: none !important; }
+.auton-info { font-size: 10px; color: var(--ink-3); margin-top: 5px; line-height: 1.6; }
+.num-input {
+  width: 56px; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--border-strong); border-radius: 4px;
+  padding: 3px 5px; font-family: var(--font-display); font-variant-numeric: tabular-nums; font-size: 11px;
+  text-align: right; -moz-appearance: textfield; appearance: textfield;
+  min-width: 0;
+}
+.num-input::-webkit-outer-spin-button,
+.num-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.num-input:focus { outline: none; border-color: var(--accent); }
+
+.help-text     { font-size: 10px; color: var(--ink-3); line-height: 1.5; }
+.wp-edit-lbl   { font-family: var(--font-display); font-weight: 700; color: var(--accent); }
+.themed-select {
+  background: var(--surface); color: var(--ink); font-family: var(--font-body);
+  border: 1px solid var(--border-strong); border-radius: 4px; padding: 3px 5px; font-size: 11px; flex: 1;
+}
+.mtp-divider  { border-top: 1px solid var(--border); }
+.unit-lbl     { margin-left: 4px; color: var(--ink-2); }
+.snippet-code { font-family: var(--font-display); font-size: 10px; color: var(--ink); background: var(--surface-2); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="titlebar">
+  <span class="brand">lillet<span class="thin"> simulator</span></span>
+  <span class="tagline">AMCL Localization &amp; Motion Console</span>
+</div>
+<div id="main">
+  <div id="canvas-wrap">
+    <canvas id="field"></canvas>
+    <div id="pause-overlay">PAUSED</div>
+  </div>
+
+  <div id="panel">
+    <!-- Mode toggle — always visible -->
+    <div class="card">
+      <div class="card-title">Mode</div>
+      <div class="toggle-row">
+        <div class="tbtn on" id="tb-mode-drive" onclick="setMode('drive')">Drive</div>
+        <div class="tbtn"    id="tb-mode-auton" onclick="setMode('auton')">Auton Plan</div>
+      </div>
+    </div>
+
+    <!-- Shared stats — visible in both drive and auton modes -->
+    <!-- True pose -->
+    <div class="card">
+      <div class="card-title">True Robot Pose</div>
+      <div class="stat-row"><span class="stat-lbl">X</span><span class="stat-val" id="sv-tx">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Y</span><span class="stat-val" id="sv-ty">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Heading</span><span class="stat-val" id="sv-th">–</span></div>
+    </div>
+
+    <!-- Estimated pose -->
+    <div class="card">
+      <div class="card-title">AMCL Estimate</div>
+      <div class="stat-row"><span class="stat-lbl">X</span><span class="stat-val" id="sv-ex">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Y</span><span class="stat-val" id="sv-ey">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Heading</span><span class="stat-val" id="sv-eh">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Position error</span><span class="stat-val" id="sv-err">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Confidence</span><span class="stat-val" id="sv-neff">–</span></div>
+      <div class="conf-bar"><div class="conf-fill" id="sv-bar" style="width:0%"></div></div>
+      <div class="stat-row" style="margin-top:5px">
+        <span class="stat-lbl">Sensor correction</span>
+        <span class="stat-val" id="sv-sact">–</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl">Dist to update</span>
+        <span class="stat-val" id="sv-sdist">–</span>
+      </div>
+    </div>
+
+    <!-- Odometry pose -->
+    <div class="card">
+      <div class="card-title">Odometry (dead reckoning)</div>
+      <div class="stat-row"><span class="stat-lbl">X</span><span class="stat-val" id="sv-ox">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Y</span><span class="stat-val" id="sv-oy">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Heading</span><span class="stat-val" id="sv-oh">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">Odom error</span><span class="stat-val" id="sv-oerr">–</span></div>
+    </div>
+
+    <!-- Incremental tracking-wheel encoders -->
+    <div class="card">
+      <div class="card-title">Tracking Encoders (incremental)</div>
+      <div class="stat-row"><span class="stat-lbl">▲ Fwd pos</span> <span class="stat-val" id="sv-encf">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">▲ Fwd Δ</span>   <span class="stat-val" id="sv-encfd">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">◄ Lat pos</span> <span class="stat-val" id="sv-encl">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">◄ Lat Δ</span>   <span class="stat-val" id="sv-encld">–</span></div>
+    </div>
+
+    <!-- Sensor readings -->
+    <div class="card">
+      <div class="card-title">Distance Sensors (mm)</div>
+      <div class="stat-row"><span class="stat-lbl">▲ Front</span><span class="stat-val" id="sv-sf">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">▼ Back</span> <span class="stat-val" id="sv-sb">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">◄ Left</span> <span class="stat-val" id="sv-sl">–</span></div>
+      <div class="stat-row"><span class="stat-lbl">► Right</span><span class="stat-val" id="sv-sr">–</span></div>
+    </div>
+
+    <!-- Drive-mode panel: hidden in Auton Plan mode -->
+    <div id="drive-panel">
+    <!-- Display toggles -->
+    <div class="card">
+      <div class="card-title">Layers</div>
+      <div class="toggle-row">
+        <div class="tbtn on" id="tb-particles" onclick="toggleLayer('particles')">Particles</div>
+        <div class="tbtn on" id="tb-sensors"   onclick="toggleLayer('sensors')">Sensors</div>
+        <div class="tbtn on" id="tb-estimate"  onclick="toggleLayer('estimate')">Estimate</div>
+        <div class="tbtn on" id="tb-trail"     onclick="toggleLayer('trail')">Trail</div>
+        <div class="tbtn on" id="tb-odom"      onclick="toggleLayer('odom')">Odom</div>
+        <div class="tbtn on" id="tb-dynobs"    onclick="toggleLayer('dynobs')">Dyn.Obs</div>
+      </div>
+      <div class="stat-row" style="margin-top:4px">
+        <span class="stat-lbl"><span class="legend-sq" style="background:#4fc3f7;opacity:.3;border:2px solid #4fc3f7"></span>True robot</span>
+        <span class="stat-lbl"><span class="legend-sq" style="background:transparent;border:2px dashed #ef5350"></span>AMCL est.</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl"><span class="legend-sq" style="background:transparent;border:2px dotted #a78bfa"></span>Odom est.</span>
+        <span class="stat-lbl"><span class="legend-dot" style="background:#a78bfa;opacity:.5"></span>Odom trail</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl"><span class="legend-dot" style="background:#6ee7b7"></span>High-weight particle</span>
+        <span class="stat-lbl"><span class="legend-dot" style="background:#2563eb"></span>Low weight</span>
+      </div>
+      <div class="stat-row" style="margin-top:4px">
+        <span class="stat-lbl"><span class="legend-dot" style="background:#ef5350"></span>Red goal</span>
+        <span class="stat-lbl"><span class="legend-dot" style="background:#42a5f5"></span>Blue goal</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl"><span class="legend-dot" style="background:#fbbf24"></span>Tall/toggle</span>
+        <span class="stat-lbl"><span class="legend-dot" style="background:#9ca3af"></span>Neutral goal</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl"><span class="legend-dot" style="background:#f97316;opacity:.8"></span>Moving obstacle</span>
+        <span class="stat-lbl help-text">(other robot/object)</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl"><span class="legend-dot" style="background:#a855f7"></span>Phantom obstacle</span>
+        <span class="stat-lbl help-text">(static, unmapped)</span>
+      </div>
+    </div>
+
+    <!-- Game objects: Override scoring pieces (Pins/Cups) -->
+    <div class="card">
+      <div class="card-title">Game Objects</div>
+      <div class="toggle-row">
+        <div class="tbtn" id="ob-pin-gray"  onclick="armObjectPlacement('pin-gray')">+ Pin (gray)</div>
+        <div class="tbtn" id="ob-pin-clear" onclick="armObjectPlacement('pin-clear')">+ Pin (clear)</div>
+      </div>
+      <div class="toggle-row">
+        <div class="tbtn" id="ob-cup-gray"  onclick="armObjectPlacement('cup-gray')">+ Cup (gray)</div>
+        <div class="tbtn" id="ob-cup-clear" onclick="armObjectPlacement('cup-clear')">+ Cup (clear)</div>
+      </div>
+      <div class="stat-row" style="margin-top:4px">
+        <span class="stat-lbl" id="sv-ob-count">0 placed</span>
+        <button class="btn" style="padding:2px 8px;font-size:11px" onclick="clearGameObjects()">Clear all</button>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl help-text">Arm a piece above, click the field to drop it, right-click a piece to delete it. The Override manual gives exact layout only as a diagram (Appendix A) — these start unplaced so you can match it yourself.</span>
+      </div>
+    </div>
+
+    <!-- Phantom obstacles: unmapped objects (e.g. other robots) that still occlude sensors -->
+    <div class="card">
+      <div class="card-title">Phantom Obstacles</div>
+      <div class="toggle-row">
+        <div class="tbtn" id="ob-phantom" onclick="armPhantomPlacement()">+ Robot / object</div>
+      </div>
+      <div class="stat-row" style="margin-top:4px">
+        <span class="stat-lbl" id="sv-phantom-count">0 placed</span>
+        <button class="btn" style="padding:2px 8px;font-size:11px" onclick="clearPhantomObjects()">Clear all</button>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl help-text">Static stand-ins for things NOT in the localizer's map (e.g. an opposing robot parked in front of a sensor). They occlude distance readings in every mode, including autonomous, but the particle filter never "sees" them — use this to test AMCL robustness to unmapped clutter. Click to place, right-click to delete.</span>
+      </div>
+    </div>
+
+    <!-- Simulation parameters -->
+    <div class="card">
+      <div class="card-title">Parameters</div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Particles</span>
+        <input type="range" id="sl-n" min="10" max="500" step="10" value="200" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-n">200</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Sensor noise σ</span>
+        <input type="range" id="sl-snoise" min="0" max="120" step="5" value="20" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-snoise">20 mm</span>
+      </div>
+      <!-- Real V5 distance sensor tops out around 2 m; beyond that it reports
+           9999 (no object). 9000 = unlimited (legacy optimistic behaviour). -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Sensor max range</span>
+        <input type="range" id="sl-smaxr" min="500" max="9000" step="100" value="2000" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-smaxr">2000 mm</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Encoder noise</span>
+        <input type="range" id="sl-enoise" min="0" max="5" step="0.1" value="0.5" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-enoise">0.5 %</span>
+      </div>
+      <!-- V5 IMU heading drift (≈1 °/min typical, worse after impacts) -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">IMU drift</span>
+        <input type="range" id="sl-imudrift" min="0" max="10" step="0.5" value="0" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-imudrift">0 °/min</span>
+      </div>
+      <!-- Off by default: path runs ignore moving obstacles for clean path design;
+           turn on to stress-test the occlusion gate during autonomous. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Occlude in path runs</span>
+        <input type="checkbox" id="cb-occlpath" onchange="onSlider()">
+        <span class="ctrl-val" id="vl-occlpath">off</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Odom trust</span>
+        <input type="range" id="sl-otrust" min="0" max="100" step="1" value="70" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-otrust">70 %</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Rotate speed</span>
+        <input type="range" id="sl-rot" min="30" max="360" step="30" value="90" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-rot">90 °/s</span>
+      </div>
+      <!-- Moving obstacles — other robots/game objects that drift across the field -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Moving obstacles</span>
+        <input type="range" id="sl-obs" min="0" max="6" step="1" value="0" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-obs">0</span>
+      </div>
+    </div>
+
+    <!-- Drive physics -->
+    <div class="card">
+      <div class="card-title">Drive Physics (inertia &amp; drift)</div>
+      <!-- Drivetrain: free speed = (rpm/60) × π × wheel Ø. 450 rpm × 2.75" ≈ 64.8 in/s -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Drive RPM</span>
+        <input type="range" id="sl-rpm" min="50" max="600" step="10" value="450" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-rpm">450</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Wheel Ø</span>
+        <input type="range" id="sl-wheel" min="2" max="4.25" step="0.05" value="2.75" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-wheel">2.75 in</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Track W</span>
+        <input type="range" id="sl-trackw" min="4" max="20" step="0.5" value="12" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-trackw">12.0 in</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-lbl">Top speed</span>
+        <span class="stat-val" id="sv-topspd">–</span>
+      </div>
+      <!-- Motor accel: low-speed acceleration; tapers to 0 near free speed. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Motor accel</span>
+        <input type="range" id="sl-macc" min="50" max="600" step="10" value="250" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-macc">250</span>
+      </div>
+      <!-- Mass: heavier robot accelerates slower for a given motor torque (more inertia). -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Robot mass</span>
+        <input type="range" id="sl-mass" min="1" max="15" step="0.5" value="5" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-mass">5.0 kg</span>
+      </div>
+      <!-- Fore-aft friction: how fast the robot stops coasting after releasing W/S. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">μ fore-aft</span>
+        <input type="range" id="sl-mufa" min="0.01" max="1" step="0.01" value="0.40" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-mufa">0.40</span>
+      </div>
+      <!-- Lateral friction: how fast a sideways drift bleeds off. Lower = drifts further. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">μ sideways</span>
+        <input type="range" id="sl-mula" min="0.01" max="1" step="0.01" value="0.15" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-mula">0.15</span>
+      </div>
+    </div>
+
+    <!-- Accuracy tuning -->
+    <div class="card">
+      <div class="card-title">Accuracy Tuning</div>
+      <!-- Model σ_hit: the filter's assumed sensor noise. Lower = sharper discrimination
+           between poses. Match to actual sensor variance for best accuracy. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Model σ_hit</span>
+        <input type="range" id="sl-smodel" min="5" max="100" step="5" value="80" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-smodel">35 mm</span>
+      </div>
+      <!-- Random inject %: particles replaced with random poses each cycle.
+           Lower = more particles refine current estimate (more accurate).
+           Higher = faster recovery after kidnap. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Inject %</span>
+        <input type="range" id="sl-inject" min="0" max="20" step="0.5" value="10" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-inject">5 %</span>
+      </div>
+      <!-- Robot half-size: half-width used when computing expected sensor readings.
+           Must exactly match the real robot's centre-to-face distance.
+           Wrong value → systematic error in ALL sensor comparisons. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Robot half-size</span>
+        <input type="range" id="sl-rh" min="3" max="12" step="0.5" value="7" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-rh">7.0 in</span>
+      </div>
+      <!-- Occlusion threshold: if a reading is this much closer than expected,
+           the filter assumes a dynamic obstacle (another robot) and reduces the
+           penalty on that reading. Lower = more conservative. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Occlusion thr.</span>
+        <input type="range" id="sl-occ" min="50" max="600" step="25" value="300" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-occ">300 mm</span>
+      </div>
+      <!-- α rotation / α translation: independent noise added to the predict step
+           for turns vs straight moves. Lower = trust odom more for that motion type. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">α rotation</span>
+        <input type="range" id="sl-arot" min="0" max="30" step="0.5" value="2.5" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-arot">5 %</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">α translation</span>
+        <input type="range" id="sl-atrans" min="0" max="30" step="0.5" value="5" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-atrans">5 %</span>
+      </div>
+      <!-- Odom-primary: how far robot travels before running a sensor correction.
+           0 = always correct (current behaviour). Higher = odom leads, sensors fix drift. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Update interval</span>
+        <input type="range" id="sl-supd" min="0" max="30" step="1" value="8" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-supd">8 in</span>
+      </div>
+      <!-- Force a sensor correction if filter confidence drops below this. -->
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Neff trigger</span>
+        <input type="range" id="sl-nefft" min="0.05" max="0.8" step="0.05" value="0.3" oninput="onSlider()">
+        <span class="ctrl-val" id="vl-nefft">0.30</span>
+      </div>
+      <div class="stat-row" style="margin-top:6px">
+        <span class="stat-lbl help-text" id="sv-tune">Press Auto Tune to optimise</span>
+      </div>
+      <button class="btn primary" id="btn-tune" onclick="startAutoTune()" style="margin-top:4px">Auto Tune (60 trials)</button>
+    </div>
+
+    <!-- Actions -->
+    <div class="card">
+      <div class="card-title">Actions</div>
+      <button class="btn danger"   onclick="kidnap()">Kidnap (scatter particles)</button>
+      <button class="btn"          onclick="resetRobot()">Reset robot to start</button>
+      <button class="btn primary"  id="btn-pause" onclick="togglePause()">Pause</button>
+      <button class="btn"          id="btn-theme" onclick="toggleColorTheme()">Switch to Blue Theme</button>
+    </div>
+
+    <!-- Controls legend -->
+    <div class="card">
+      <div class="card-title">Keyboard Controls</div>
+      <div class="key-grid">
+        <div class="key-row"><kbd>W</kbd><kbd>S</kbd> Forward / back</div>
+        <div class="key-row"><kbd>A</kbd><kbd>D</kbd> Rotate</div>
+        <div class="key-row"><kbd>↑↓</kbd> Drive fwd/back</div>
+        <div class="key-row"><kbd>←→</kbd> Shove sideways</div>
+      </div>
+      <div class="key-row" style="margin-top:5px">←/→ = unpowered bump → watch it <strong>drift</strong></div>
+      <div class="key-row" style="margin-top:3px">Click field to <strong>teleport</strong> robot</div>
+    </div>
+    </div><!-- /drive-panel -->
+
+    <!-- Auton planning panel — shown when Auton Plan mode is active -->
+    <div id="auton-panel" class="hidden">
+
+      <!-- Start pose -->
+      <div class="card">
+        <div class="card-title">Start Pose</div>
+        <div class="auton-info">Where the robot begins. Drag the blue "S" marker on the field or type values.</div>
+        <div class="ctrl-row" style="margin-top:6px">
+          <span class="ctrl-lbl" style="min-width:14px">X</span>
+          <input class="num-input" type="number" id="in-start-x" step="1" value="-48" oninput="onStartInput()">
+          <span class="ctrl-lbl" style="min-width:14px;margin-left:6px">Y</span>
+          <input class="num-input" type="number" id="in-start-y" step="1" value="-48" oninput="onStartInput()">
+        </div>
+        <div class="ctrl-row" style="margin-top:4px">
+          <span class="ctrl-lbl">Heading</span>
+          <input type="range" id="sl-start-theta" min="-180" max="180" step="5" value="0" oninput="onStartInput()">
+          <span class="ctrl-val" id="vl-start-theta">0°</span>
+        </div>
+        <button class="btn" onclick="setStartToRobot()" style="margin-top:4px">⊕ Capture Robot Pos</button>
+      </div>
+
+      <!-- Path editor -->
+      <div class="card">
+        <div class="card-title">Path Editor</div>
+        <div class="auton-info">Click field to add waypoints · Drag to reposition · Click marker to select &amp; edit heading</div>
+        <div class="stat-row" style="margin-top:6px">
+          <span class="stat-lbl">Waypoints</span>
+          <span class="stat-val" id="sv-wp-count">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-lbl">Path length</span>
+          <span class="stat-val" id="sv-path-len">–</span>
+        </div>
+        <div style="margin-top:6px;display:flex;gap:5px">
+          <button class="btn" style="margin:0;flex:1" onclick="undoWaypoint()">↩ Undo</button>
+          <button class="btn danger" style="margin:0;flex:1" onclick="clearPath()">✕ Clear</button>
+        </div>
+      </div>
+
+      <!-- Selected waypoint editor — hidden until a waypoint or start is selected -->
+      <div class="card" id="wp-edit-card" style="display:none">
+        <div class="card-title">Edit: <span id="sv-wp-edit-lbl" class="wp-edit-lbl">Waypoint 1</span></div>
+        <div class="ctrl-row" style="margin-top:4px">
+          <span class="ctrl-lbl" style="min-width:14px">X</span>
+          <input class="num-input" type="number" id="in-wp-x" step="0.5" oninput="onWpEditInput()">
+          <span class="ctrl-lbl" style="min-width:14px;margin-left:6px">Y</span>
+          <input class="num-input" type="number" id="in-wp-y" step="0.5" oninput="onWpEditInput()">
+        </div>
+        <div class="ctrl-row" style="margin-top:4px">
+          <span class="ctrl-lbl">Heading</span>
+          <input type="range" id="sl-wp-theta" min="-180" max="180" step="5" value="0" oninput="onWpEditInput()">
+          <span class="ctrl-val" id="vl-wp-theta">0°</span>
+        </div>
+        <button class="btn danger" id="btn-delete-wp" onclick="deleteSelectedWp()" style="margin-top:4px">Delete Waypoint</button>
+
+        <!-- Move type selector — only for real waypoints -->
+        <div id="wp-type-row" style="display:none;margin-top:6px">
+          <div class="ctrl-row" style="gap:4px">
+            <span class="ctrl-lbl">Move type</span>
+            <select id="sel-wp-type" class="themed-select" onchange="onWpTypeChange()">
+              <option value="moveToPose">moveToPose</option>
+              <option value="moveToPoint">moveToPoint</option>
+              <option value="turnToHeading">turnToHeading</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- moveToPose params — only shown when a real waypoint (not start) is selected -->
+        <div id="mtp-params" class="mtp-divider" style="display:none;margin-top:8px;padding-top:8px">
+          <div class="card-title" style="font-size:11px;margin-bottom:4px">moveToPose Parameters</div>
+          <div class="ctrl-row">
+            <span class="ctrl-lbl">Max Speed</span>
+            <input type="range" id="sl-mtp-maxspd" min="10" max="127" step="1" value="100" oninput="onMtpInput()">
+            <span class="ctrl-val" id="vl-mtp-maxspd">100</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-lbl">Min Speed</span>
+            <input type="range" id="sl-mtp-minspd" min="0" max="80" step="1" value="0" oninput="onMtpInput()">
+            <span class="ctrl-val" id="vl-mtp-minspd">0</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-lbl">Timeout</span>
+            <input class="num-input" type="number" id="in-mtp-timeout" step="500" value="3000" style="width:52px" oninput="onMtpInput()">
+            <span class="ctrl-lbl unit-lbl">ms</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-lbl">Exit at</span>
+            <input class="num-input" type="number" id="in-mtp-exit" step="0.5" value="0" style="width:44px" oninput="onMtpInput()">
+            <span class="ctrl-lbl unit-lbl">in</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-lbl">Lead</span>
+            <input type="range" id="sl-mtp-lead" min="0" max="100" step="5" value="60" oninput="onMtpInput()">
+            <span class="ctrl-val" id="vl-mtp-lead">0.60</span>
+          </div>
+          <div class="ctrl-row">
+            <span class="ctrl-lbl">Direction</span>
+            <label style="cursor:pointer;display:flex;align-items:center;gap:5px">
+              <input type="checkbox" id="cb-mtp-fwd" checked onchange="onMtpInput()">
+              <span id="vl-mtp-fwd" style="font-size:11px">Forwards</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution -->
+      <div class="card">
+        <div class="card-title">Execution</div>
+        <div class="stat-row" style="margin-top:4px">
+          <span class="stat-lbl">Status</span>
+          <span class="stat-val" id="sv-auton-status">–</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-lbl">Move</span>
+          <span class="stat-val" id="sv-mtp-move">–</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-lbl">Dist / Err</span>
+          <span class="stat-val" id="sv-mtp-dist">–</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-lbl">Speed</span>
+          <span class="stat-val" id="sv-mtp-spd">–</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-lbl">Elapsed</span>
+          <span class="stat-val" id="sv-mtp-time">–</span>
+        </div>
+        <button class="btn primary" id="btn-run-auton" onclick="runAuton()" style="margin-top:6px">▶ Run Path</button>
+        <button class="btn" onclick="stopAuton()">■ Stop</button>
+        <button class="btn" onclick="resetRobot()">↺ Reset Robot</button>
+      </div>
+
+      <!-- Export -->
+      <div class="card">
+        <div class="card-title">Export to LemLib</div>
+        <button class="btn success" onclick="exportLemLibCode()">Copy LemLib Code</button>
+        <div class="auton-info">
+          Generates <code class="snippet-code">chassis.setPose()</code> +
+          <code class="snippet-code">moveToPose()</code> calls.
+          Coords: centre origin · +x right · +y north · θ CW from north (°).
+        </div>
+      </div>
+
+      <!-- Layer toggles in auton mode (drives same layers object) -->
+      <div class="card">
+        <div class="card-title">Layers</div>
+        <div class="toggle-row">
+          <div class="tbtn on" id="tb-a-particles" onclick="toggleLayerA('particles')">Particles</div>
+          <div class="tbtn on" id="tb-a-sensors"   onclick="toggleLayerA('sensors')">Sensors</div>
+          <div class="tbtn on" id="tb-a-estimate"  onclick="toggleLayerA('estimate')">Estimate</div>
+          <div class="tbtn on" id="tb-a-trail"     onclick="toggleLayerA('trail')">Trail</div>
+        </div>
+      </div>
+
+    </div><!-- /auton-panel -->
+
+  </div><!-- /panel -->
+</div><!-- /main -->
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════
+// Constants
+// ═══════════════════════════════════════════════════════════
+const PI        = Math.PI;
+const TWO_PI    = PI * 2;
+const FIELD_H   = 71.0;          // half-width of inner field (inches)
+const MPIN      = 25.4;          // mm per inch
+const IPMM      = 1 / 25.4;      // inches per mm
+const ROBOT_H   = 7.0;           // robot half-size (inches)
+
+// ── Per-sensor mounting geometry — mirrors robot_config.hpp §4b ─────────────
+// fwd: centre → sensor glass (in), -1 = use ROBOT_H.  lat: along the face,
+// + = right of the facing direction.  yaw: aim error (deg, + = CW).
+// base: raw-reading bias (mm) — added by the simulated sensor, subtracted
+// again before the filter (exactly what Localizer::readSensors() does).
+const SENSOR_MOUNTS = {
+  front: { fwd: -1, lat: 0, yaw: 0, base: 0 },
+  back:  { fwd: -1, lat: 0, yaw: 0, base: 0 },
+  left:  { fwd: -1, lat: 0, yaw: 0, base: 0 },
+  right: { fwd: -1, lat: 0, yaw: 0, base: 0 },
+};
+const SENSOR_NOMINAL = { front: 0, back: Math.PI, right: Math.PI / 2, left: -Math.PI / 2 };
+
+// Origin + beam direction of one sensor for a given pose, honouring its mount.
+function sensorRay(pose, k, rh = ROBOT_H, mounts = SENSOR_MOUNTS) {
+  const m   = mounts[k];
+  const fwd = m.fwd >= 0 ? m.fwd : rh;
+  const af  = pose.th + SENSOR_NOMINAL[k];          // facing (mount frame)
+  const ux  = Math.sin(af), uy = Math.cos(af);
+  const rx  = Math.cos(af), ry = -Math.sin(af);     // 90° CW of facing
+  const ad  = af + m.yaw * Math.PI / 180;           // actual beam direction
+  return { ox: pose.x + fwd * ux + m.lat * rx,
+           oy: pose.y + fwd * uy + m.lat * ry,
+           dx: Math.sin(ad), dy: Math.cos(ad) };
+}
+// Size the (square) canvas to the viewport height so it fills the screen,
+// leaving room for the multi-column panel on the right. Capped for huge monitors.
+const CANVAS_SZ = Math.max(560, Math.min(window.innerHeight - 24, 900));
+// Show 76" on each side: full 144" + ~5" margins
+const VIEW_H    = 76;
+const SCALE     = CANVAS_SZ / (VIEW_H * 2); // px per inch
+
+// ═══════════════════════════════════════════════════════════
+// Math helpers
+// ═══════════════════════════════════════════════════════════
+function wrap(a) {
+  while (a >  PI) a -= TWO_PI;
+  while (a <= -PI) a += TWO_PI;
+  return a;
+}
+
+function randn() {
+  // Box-Muller
+  const u = Math.random() + 1e-15, v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(TWO_PI * v);
+}
+function sampleN(mean, sd) { return sd > 0 ? mean + randn() * sd : mean; }
+
+// Reduce a velocity component toward zero by `d` (kinetic friction), never past 0.
+function applyFriction(v, d) {
+  return v > 0 ? Math.max(0, v - d) : Math.min(0, v + d);
+}
+
+// Field → canvas pixel
+function tc(fx, fy) {
+  return [CANVAS_SZ / 2 + fx * SCALE,
+          CANVAS_SZ / 2 - fy * SCALE];
+}
+
+// ── Game object placement (Pins/Cups) ─────────────────────────────────────
+function armObjectPlacement(kind) {
+  objectPlaceKind = (objectPlaceKind === kind) ? null : kind;
+  if (objectPlaceKind) phantomPlaceArmed = false; // mutually exclusive tools
+  updateObjectPlaceUI();
+  updatePhantomPlaceUI();
+}
+function updateObjectPlaceUI() {
+  for (const k of ['pin-gray', 'pin-clear', 'cup-gray', 'cup-clear']) {
+    const el = document.getElementById('ob-' + k);
+    if (el) el.classList.toggle('on', objectPlaceKind === k);
+  }
+  setText('sv-ob-count', gameObjects.length + ' placed');
+  canvas.style.cursor = (objectPlaceKind || phantomPlaceArmed) ? 'copy' : 'crosshair';
+}
+function clearGameObjects() {
+  gameObjects = [];
+  updateObjectPlaceUI();
+}
+function drawGameObjects() {
+  for (const o of gameObjects) {
+    const [px, py] = tc(o.x, o.y);
+    const gray = o.side === 'gray';
+    if (o.kind === 'pin') {
+      ctx.beginPath(); ctx.arc(px, py, Math.max(3, 3.5 * SCALE), 0, TWO_PI);
+      ctx.fillStyle   = gray ? '#9ca3af' : '#e0f2fe';
+      ctx.fill();
+      ctx.strokeStyle = '#374151'; ctx.lineWidth = 1; ctx.stroke();
+    } else {
+      const s = Math.max(6, 5 * SCALE);
+      ctx.fillStyle   = gray ? '#a8a29e' : '#bae6fd';
+      ctx.fillRect(px - s / 2, py - s / 2, s, s);
+      ctx.strokeStyle = '#374151'; ctx.lineWidth = 1;
+      ctx.strokeRect(px - s / 2, py - s / 2, s, s);
+    }
+  }
+}
+
+// ── Phantom obstacle placement (static, unmapped — e.g. another robot) ────
+function armPhantomPlacement() {
+  phantomPlaceArmed = !phantomPlaceArmed;
+  if (phantomPlaceArmed) objectPlaceKind = null; // mutually exclusive tools
+  updateObjectPlaceUI();
+  updatePhantomPlaceUI();
+}
+function updatePhantomPlaceUI() {
+  const el = document.getElementById('ob-phantom');
+  if (el) el.classList.toggle('on', phantomPlaceArmed);
+  setText('sv-phantom-count', phantomObjects.length + ' placed');
+  canvas.style.cursor = (objectPlaceKind || phantomPlaceArmed) ? 'copy' : 'crosshair';
+}
+function clearPhantomObjects() {
+  phantomObjects = [];
+  updatePhantomPlaceUI();
+}
+function drawPhantomObjects() {
+  for (const o of phantomObjects) {
+    const [px, py] = tc(o.x, o.y);
+    const r = o.r * SCALE;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, TWO_PI);
+    ctx.fillStyle   = 'rgba(168,85,247,0.30)';
+    ctx.fill();
+    ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2; ctx.setLineDash([]);
+    ctx.stroke();
+    // Crosshair marker — distinguishes a static phantom from a moving dynObs
+    ctx.beginPath();
+    ctx.moveTo(px - r * 0.5, py); ctx.lineTo(px + r * 0.5, py);
+    ctx.moveTo(px, py - r * 0.5); ctx.lineTo(px, py + r * 0.5);
+    ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// FieldModel  (mirrors field_model.cpp exactly)
+// ═══════════════════════════════════════════════════════════
+class FieldModel {
+  constructor() {
+    this.MAX_MM = 9000;
+    this.obs    = [];     // AABB obstacles {xMin,yMin,xMax,yMax}
+  }
+
+  addObstacle(xMin, yMin, xMax, yMax) {
+    this.obs.push({ xMin, yMin, xMax, yMax });
+  }
+
+  // Returns mm to nearest surface along ray from (ox,oy) [in] in direction (dx,dy) [normalised]
+  raycast(ox, oy, dx, dy) {
+    let t = this.MAX_MM * IPMM;            // max range in inches
+    const H = FIELD_H;
+    if (dy >  1e-6) t = Math.min(t, ( H - oy) / dy);
+    if (dy < -1e-6) t = Math.min(t, (-H - oy) / dy);
+    if (dx >  1e-6) t = Math.min(t, ( H - ox) / dx);
+    if (dx < -1e-6) t = Math.min(t, (-H - ox) / dx);
+    for (const o of this.obs) {
+      const r = this._slab(o, ox, oy, dx, dy);
+      if (r > 1e-4) t = Math.min(t, r);
+    }
+    return t * MPIN;
+  }
+
+  // AABB slab intersection (inches)
+  _slab(o, ox, oy, dx, dy) {
+    let tMin = -1e30, tMax = 1e30;
+    if (Math.abs(dx) > 1e-9) {
+      let t1 = (o.xMin - ox) / dx, t2 = (o.xMax - ox) / dx;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tMin = Math.max(tMin, t1); tMax = Math.min(tMax, t2);
+    } else if (ox < o.xMin || ox > o.xMax) return -1;
+    if (Math.abs(dy) > 1e-9) {
+      let t1 = (o.yMin - oy) / dy, t2 = (o.yMax - oy) / dy;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tMin = Math.max(tMin, t1); tMax = Math.min(tMax, t2);
+    } else if (oy < o.yMin || oy > o.yMax) return -1;
+    if (tMax < tMin || tMax < 1e-4) return -1;
+    return tMin > 1e-4 ? tMin : tMax;
+  }
+
+  // Returns {front,back,left,right} distances in mm for a pose, honouring the
+  // per-sensor mounting geometry (defaults = ideal face-centre mounts).
+  expected(pose, rh = ROBOT_H, mounts = SENSOR_MOUNTS) {
+    const out = {};
+    for (const k of ['front', 'back', 'left', 'right']) {
+      const r = sensorRay(pose, k, rh, mounts);
+      out[k] = this.raycast(r.ox, r.oy, r.dx, r.dy);
+    }
+    return out;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// ParticleFilter  (mirrors particle_filter.cpp exactly)
+// ═══════════════════════════════════════════════════════════
+class PF {
+  constructor(field) {
+    this.field  = field;
+    this.ps     = [];    // [{x,y,th,w}]
+    this.cfg = {
+      N:       200,
+      a1:      0.025, a2: 0.0025, a3: 0.05, a4: 0.05,
+      sigHit:  80,    zHit: 0.75, zRand: 0.25,
+      occThr:  300,
+      inject:  0.10,
+      rh:      ROBOT_H,
+      mounts:  SENSOR_MOUNTS,   // per-sensor placement (robot_config.hpp §4b)
+      // Extra measurement σ per in/s of robot speed — compensates for the
+      // ~30 ms staleness of distance readings taken while moving fast.
+      sigSpeedK: 1.5,
+    };
+    this.speedIps  = 0;     // current robot speed (in/s), set by the sim loop
+    this.collapsed = false; // true if the last update() zeroed every weight
+    this.freshFrom = 0;     // ps[freshFrom..] = injected hypotheses best() ignores
+  }
+
+  init(pose, pSd = 0.5, aSd = 0.03) {
+    const w = 1 / this.cfg.N;
+    this.ps = Array.from({ length: this.cfg.N }, () => ({
+      x: sampleN(pose.x, pSd), y: sampleN(pose.y, pSd),
+      th: wrap(sampleN(pose.th, aSd)), w,
+    }));
+    this.freshFrom = this.ps.length;   // no fresh injections yet
+  }
+
+  predict(d) {
+    const { a1,a2,a3,a4 } = this.cfg;
+    const tr = Math.hypot(d.fwd, d.lat);
+    const ah = Math.abs(d.dth);
+    const sH = Math.sqrt(a1*ah*ah + a2*tr*tr);
+    const sT = Math.sqrt(a3*tr*tr  + a4*ah*ah);
+    const sL = Math.sqrt(a3*d.lat*d.lat + a4*ah*ah);
+    for (const p of this.ps) {
+      const dh = d.dth + sampleN(0, sH);
+      const df = d.fwd + sampleN(0, sT);
+      const dl = d.lat + sampleN(0, sL);
+      const mid = p.th + dh * 0.5;
+      const s = Math.sin(mid), c = Math.cos(mid);
+      p.x  += df*s + dl*c;
+      p.y  += df*c - dl*s;
+      p.th  = wrap(p.th + dh);
+    }
+  }
+
+  update(meas) {
+    // Two-pass log-sum-exp: compute every particle's log-likelihood first,
+    // shift by the max, then exponentiate. The best particle always gets
+    // factor 1, so weights can never underflow no matter how badly the cloud
+    // mismatches — and the relative weighting is mathematically unchanged
+    // (the common exp(-maxLL) factor cancels in normalisation).
+    const n   = this.ps.length;
+    const lls = new Array(n);
+    let maxLL = -Infinity, nValid = 0;
+    for (const k of ['front','back','left','right']) {
+      const m = meas[k]; if (m > 0 && m < 9000) nValid++;
+    }
+    for (let i = 0; i < n; i++) {
+      const exp = this.field.expected(this.ps[i], this.cfg.rh, this.cfg.mounts);
+      let ll = 0;
+      for (const k of ['front','back','left','right']) {
+        const m = meas[k]; if (m <= 0 || m >= 9000) continue;
+        ll += this._ll(m, exp[k]);
+      }
+      lls[i] = ll;
+      if (ll > maxLL) maxLL = ll;
+    }
+    // Collapse = even the BEST particle scored at ~the uniform floor on every
+    // valid sensor (≈ -10.5 each): nothing in the cloud explains the readings.
+    // The caller must publish confidence 0 in that case, not Neff.
+    this.collapsed = nValid > 0 && maxLL < nValid * -9.5;
+    const shift = maxLL > -Infinity ? maxLL : 0;
+    for (let i = 0; i < n; i++) this.ps[i].w *= Math.exp(lls[i] - shift);
+    this.freshFrom = n;   // everyone has now been weighted by evidence
+    this._norm();
+  }
+
+  resample() {
+    const N     = this.ps.length;
+    const nRnd  = Math.round(this.cfg.inject * N);
+    const nKeep = N - nRnd;
+    // CDF
+    const cdf = []; cdf[0] = this.ps[0].w;
+    for (let i = 1; i < N; i++) cdf[i] = cdf[i-1] + this.ps[i].w;
+    // Systematic sample
+    const w0   = 1 / N;
+    const step = cdf[N-1] / nKeep;
+    let pos = Math.random() * step, j = 0;
+    const out = [];
+    for (let i = 0; i < nKeep; i++) {
+      while (pos > cdf[j] && j < N-1) j++;
+      out.push({ ...this.ps[j], w: w0 });
+      pos += step;
+    }
+    // Random injection: scatter position but use IMU heading to break the 4-fold
+    // symmetric ambiguity of a square field (mirrors the real C++ robot).
+    // Injected at full weight so they compete fairly in the NEXT update/resample
+    // (that competition is exactly how kidnap recovery works) — but best() must
+    // exclude them until then: at uniform weight, 10 field-wide randoms drag the
+    // weighted-mean estimate ~5% toward field centre (a constant ~3.4" bias at a
+    // corner). They always sit at the tail of the array, so a single index marks
+    // where the un-weighted hypotheses start.
+    for (let i = 0; i < nRnd; i++) {
+      out.push({
+        x:  (Math.random()*2-1)*FIELD_H,
+        y:  (Math.random()*2-1)*FIELD_H,
+        th: sampleN(this.imuHeading, 0.05),
+        w:  w0,
+      });
+    }
+    this.ps = out;
+    this.freshFrom = nKeep;   // ps[nKeep..] are fresh hypotheses, not evidence
+  }
+
+  best() {
+    // Fresh injections (ps[freshFrom..]) are excluded: they carry placeholder
+    // weight but no evidence yet, and including them biases the mean toward
+    // field centre. They rejoin the estimate after their first update().
+    let sx=0,sy=0,sc=0,ss=0,tw=0;
+    const n = Math.min(this.freshFrom, this.ps.length) || this.ps.length;
+    for (let i = 0; i < n; i++) {
+      const p = this.ps[i];
+      sx+=p.w*p.x; sy+=p.w*p.y;
+      sc+=p.w*Math.cos(p.th); ss+=p.w*Math.sin(p.th);
+      tw+=p.w;
+    }
+    if (tw < 1e-9) return { ...this.ps[0] };
+    return { x:sx/tw, y:sy/tw, th:Math.atan2(ss/tw, sc/tw) };
+  }
+
+  neff() {
+    // Must be called BEFORE resample — weights are uniform (=1/N) after resampling.
+    const sq = this.ps.reduce((s,p)=>s+p.w*p.w, 0);
+    return sq < 1e-12 ? 0 : Math.min(1/(sq*this.ps.length), 1);
+  }
+
+  // Current heading from IMU (set by simulation loop each frame)
+  imuHeading = 0;
+
+  // Resize particle array live
+  resize(N) {
+    if (N === this.ps.length) return;
+    this.cfg.N = N;
+    this.freshFrom = N;   // treat the whole resized set as evidence-backed
+    // Sample with replacement to fill/trim
+    const old = this.ps.slice();
+    if (N > old.length) {
+      const extra = N - old.length;
+      // Duplicate randomly from existing
+      for (let i = 0; i < extra; i++) {
+        const src = old[Math.floor(Math.random()*old.length)];
+        this.ps.push({ ...src, w: 1/N });
+      }
+      for (const p of this.ps) p.w = 1/N;
+    } else {
+      this.ps = old.slice(0, N);
+      this._norm();
+    }
+  }
+
+  _ll(m, e) {
+    const diff = m - e;
+    // Inflate σ with speed: readings taken while moving fast are stale by the
+    // sensor's ~30 ms internal update period, which shows up as extra noise
+    // along the direction of travel.
+    const sig  = this.cfg.sigHit + this.cfg.sigSpeedK * this.speedIps;
+    const pH   = Math.exp(-0.5*diff*diff/(sig*sig)) / (sig * 2.5066);
+    const occ  = diff < -this.cfg.occThr;
+    const zh   = occ ? 0.15 : this.cfg.zHit;
+    const zr   = occ ? 0.85 : this.cfg.zRand;
+    const mix  = zh*pH + zr/9000;
+    return mix > 1e-15 ? Math.log(mix) : -35;
+  }
+
+  _norm() {
+    let s = this.ps.reduce((t,p)=>t+p.w, 0);
+    if (s < 1e-15) {
+      // Numerical wipe-out (should be unreachable now that update() shifts by
+      // maxLL). Reset to uniform so the filter keeps running, and flag it —
+      // the caller must report confidence 0, not the Neff of these artificial
+      // uniform weights. Never CLEARS collapsed: update() owns that decision.
+      this.collapsed = true;
+      const w = 1/this.ps.length; this.ps.forEach(p=>p.w=w);
+      return;
+    }
+    this.ps.forEach(p=>p.w/=s);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Simulation state
+// ═══════════════════════════════════════════════════════════
+const field = new FieldModel();
+const pf    = new PF(field);
+
+// ─── Override 2026-27 field elements ────────────────────────────────────────
+// Source: Game Manual v0.2 (positions converted from feet to inches)
+// Coordinate origin = field centre; +x right, +y north
+const GH = 5;    // goal AABB half-size  (≈10" footprint, used for ray-cast)
+const LW = 8.4;  // loader half-width along wall (1.4 ft / 2 = 8.4")
+const LD = 4;    // loader protrusion depth from inner wall face (inches)
+const TW = 12;   // toggle half-width along wall (2.0 ft / 2 = 12")
+const TD = 6;    // toggle protrusion depth from inner wall face (0.5 ft = 6")
+
+const GOALS = [
+  // Red alliance
+  { x: -48, y: -24, type: 'red'   },
+  { x: -24, y: -48, type: 'red'   },
+  // Blue alliance
+  { x:  24, y:  48, type: 'blue'  },
+  { x:  48, y:  24, type: 'blue'  },
+  // Neutral short (one per quadrant, opposite corners to alliances)
+  { x: -24, y:  48, type: 'short' },
+  { x:  48, y: -24, type: 'short' },
+  { x:  24, y: -48, type: 'short' },
+  { x: -48, y:  24, type: 'short' },
+  // Neutral tall (field centre)
+  { x:   0, y:   0, type: 'tall'  },
+];
+
+// ── Game objects (Pins/Cups) — Override scoring pieces ───────────────────────
+// The manual states there are 24 gray-side-up + 12 clear-side-up pieces in
+// "predetermined locations," but those locations are only given as a field
+// diagram (Appendix A), not as plain coordinates — so this starts empty.
+// Place pieces with the Game Objects panel to match your printed diagram.
+let gameObjects     = [];   // {x, y, kind:'pin'|'cup', side:'gray'|'clear'}
+let objectPlaceKind = null; // armed placement tool, e.g. 'pin-gray', or null
+
+// ── Phantom obstacles — e.g. other robots not in the localizer's map ────────
+// These are static, user-placed circular obstacles that DO occlude distance
+// sensors (computeSensorReadings) but are never registered with `field`, so
+// the particle filter's expected() never accounts for them. This lets you
+// test AMCL robustness against real-world clutter the map doesn't know about.
+let phantomObjects    = [];   // {x, y, r}
+let phantomPlaceArmed = false;
+
+// Register all field elements in the ray-cast model
+for (const g of GOALS)
+  field.addObstacle(g.x - GH, g.y - GH, g.x + GH, g.y + GH);
+// Loaders — red on left wall (x=−71), blue on right wall (x=+71), at y=±60"
+field.addObstacle(-FIELD_H,        60-LW, -FIELD_H+LD,  60+LW);
+field.addObstacle(-FIELD_H,       -60-LW, -FIELD_H+LD, -60+LW);
+field.addObstacle( FIELD_H-LD,     60-LW,  FIELD_H,     60+LW);
+field.addObstacle( FIELD_H-LD,    -60-LW,  FIELD_H,    -60+LW);
+// Toggles — protrusions at midpoint of each wall (x=0 or y=0)
+field.addObstacle(-TW,  FIELD_H-TD,  TW,  FIELD_H);    // north wall
+field.addObstacle(-TW, -FIELD_H,     TW, -FIELD_H+TD); // south wall
+field.addObstacle( FIELD_H-TD, -TW,  FIELD_H,  TW);    // east wall
+field.addObstacle(-FIELD_H,    -TW, -FIELD_H+TD, TW);  // west wall
+
+const START = { x: -48, y: -48, th: 0 };
+let robot    = { ...START };
+let est      = { x: 0, y: 0, th: 0 };
+let conf     = 0;
+let sensorNoise = 20;   // mm
+let sensorMaxRange = 2000; // mm — real V5 distance sensor limit; beyond → 9999 (invalid)
+let rotSpeed    = PI/2; // rad/s
+
+// ── Simulated IMU drift ───────────────────────────────────────────────────────
+// The real V5 IMU drifts (~1 °/min, worse after impacts). The sim IMU heading
+// reported to the filter is robot.th + imuDriftRad, and odometry heading deltas
+// include the per-frame drift increment — exactly what the robot would measure.
+let imuDriftDegPerMin = 0;
+let imuDriftRad       = 0;
+
+const trailT = [], trailE = [], trailO = [], trailA = [];
+const TRAIL   = 350;
+
+// Odometry tracking state
+let odomPose      = { x: START.x, y: START.y, th: START.th };
+let fwdWheelAngle = 0;   // visual rotation of forward tracking wheel (radians)
+let latWheelAngle = 0;   // visual rotation of lateral tracking wheel (radians)
+let odomNoisePct  = 0.5; // encoder noise as % of distance (simulates imperfect encoders)
+const WHEEL_R     = 1.0; // tracking wheel radius in inches (for visual spin)
+
+// Incremental tracking-wheel encoders (VEX pros::Rotation reports centidegrees,
+// accumulating).  fwdEncCdeg / latEncCdeg are the running totals; dFwdCdeg /
+// dLatCdeg are the per-frame increments (the "incremental position encoder" read).
+let fwdEncCdeg = 0, latEncCdeg = 0;
+let dFwdCdeg   = 0, dLatCdeg   = 0;
+
+// ── Rigid-body drive physics (inertia + sideways drift) ───────────────────────
+// The robot is powered forward/back (W/S) and in rotation (A/D), but NOT
+// sideways — so momentum carries it into a drift when it turns while moving, or
+// when shoved (←/→).  Velocity is stored in the WORLD frame so a heading change
+// preserves momentum (the essence of drift).
+const REF_MASS    = 5.0;     // kg — reference mass for drive-accel scaling
+const G_SIM       = 386.09;  // in/s²  — gravity; sets friction deceleration (μ·g)
+let   robotMass   = 5.0;     // kg — tuneable; heavier = more sluggish (more inertia)
+let   muBack      = 0.40;    // fore-aft friction coefficient (coast/braking)
+let   muSide      = 0.15;    // lateral friction coefficient (how fast drift bleeds off)
+const vel         = { x: 0, y: 0 };  // world-frame velocity (in/s)
+
+// ── Drivetrain spec (set to your robot: 450 rpm, 2.75" wheels) ─────────────────
+// Free speed = (rpm / 60) × π × wheel_diameter.  450 rpm × 2.75" ≈ 64.8 in/s.
+// Motor accel models the torque–speed curve: high acceleration at low speed,
+// tapering to zero as the robot approaches free speed (so it ramps up, not snaps).
+let   driveRpm      = 450;
+let   driveWheelDia = 2.75;  // inches
+let   driveTrackW   = 12.0;  // inches — left-to-right wheel centre distance
+let   motorAccel    = 250;   // in/s² — stall-region (low-speed) acceleration
+let   freeSpeed     = (driveRpm / 60) * Math.PI * driveWheelDia; // in/s, computed
+
+let paused = false;
+let lastMs = null;
+
+// Display layer toggles
+const layers = { particles:true, sensors:true, estimate:true, trail:true, odom:true, dynobs:true };
+
+// ── Odom-primary: adaptive sensor update ─────────────────────────────────────
+// Sensor corrections only fire when the robot has travelled sensorUpdateDist
+// since the last correction, OR when filter confidence (Neff) drops below
+// neffThreshold.  Between corrections the predict step (odom) runs every frame
+// so the estimate tracks the odometry tightly.
+let distanceSinceUpdate = 0;  // inches since last sensor correction
+let sensorUpdateDist    = 8;  // trigger correction after this many inches
+let neffThreshold       = 0.30; // also trigger if conf drops below this
+let sensorActive        = false;
+// Low-confidence (Neff) corrections are rate-limited: consecutive updates use
+// near-identical (correlated) readings, and resampling on correlated data
+// impoverishes the particle set. Distance-triggered corrections are unaffected.
+const NEFF_RETRIGGER_S  = 0.12;  // min seconds between Neff-forced corrections
+let timeSinceUpdate     = 1e9;   // seconds since last correction (big = fire at will)
+// Whether dynamic obstacles occlude the sensors during autopilot path runs
+// (off = legacy behaviour: clean readings while following a path).
+let occludePathRuns     = false;
+
+// ── Auton path planning ───────────────────────────────────────────────────────
+let mode             = 'drive';  // 'drive' | 'auton'
+let waypoints        = [];       // [{x,y,theta,maxSpeed,minSpeed,timeout,earlyExitRange,forwards,lead}]
+let splinePath       = [];       // densely sampled {x,y} preview path
+let splineArcs       = [];       // cumulative arc-length at each splinePath index
+let totalPathLen     = 0;
+let autopilotRunning = false;
+let currentMoveIdx   = -1;       // which waypoint is being executed (-1 = idle)
+let moveStartMs      = 0;        // performance.now() when current move began
+let mtpCarrot        = null;     // {x,y} carrot point drawn during execution
+
+let autonStart    = { x: -48, y: -48, theta: 0 }; // start pose (theta degrees CW from north)
+let selectedWpIdx = -1;   // -1 = none, -2 = start marker, ≥0 = waypoint index
+let draggingWpIdx = -3;   // -3 = not dragging position
+let rotatingWpIdx = -3;   // -3 = not rotating; -2 = start, ≥0 = waypoint (arrow-tip drag)
+let dragMovedPx   = 0;    // cumulative pixel movement (click vs drag threshold)
+let dragPrevFx    = 0, dragPrevFy = 0;
+
+// ── Dynamic obstacles (other robots / game objects on the field) ──────────────
+const dynObs   = [];
+let   numDynObs = 0;
+const DYN_OBS_R = 6.5;   // radius in inches (~half a VEX robot)
+
+// ── Color theme ─────────────────────────────────────────────────────────────
+// 'neutral' = light background, dark-grey accents (default). 'blue' = the
+// original dark navy + blue-accent theme, restored via the "Switch to Blue
+// Theme" button. Chrome (buttons/cards/etc.) is toggled with the body's
+// .theme-blue class in <style>; the field canvas can't use CSS, so its
+// per-theme colors live in FIELD_THEME below and are read every draw call.
+let simTheme = 'neutral';
+const FIELD_THEME = {
+  neutral: {
+    bg: '#e0e0e0', tileA: '#eaeaea', tileB: '#dcdcdc', wall: '#39434f',
+    boundary: 'rgba(0,0,0,0.15)', grid: 'rgba(0,0,0,0.07)',
+    axes: 'rgba(0,0,0,0.25)', cornerLabel: 'rgba(0,0,0,0.35)',
+    loaderFill: 'rgba(160,160,160,0.55)', loaderStroke: '#5a6472',
+    trailA: 'rgba(57,67,79,0.78)',
+    wpOutline: '#39434f', wpArrowDefault: 'rgba(57,67,79,0.7)', wpLabel: '#39434f',
+    gripOutline: '#39434f',
+    particleLitBase: 45, particleLitDelta: -20,
+    confHigh: '#39434f', confMid: '#8991a0', confLow: '#dbdfe4',
+  },
+  blue: {
+    bg: '#111827', tileA: '#1a2e1a', tileB: '#162416', wall: '#78350f',
+    boundary: 'rgba(255,255,255,0.08)', grid: 'rgba(255,255,255,0.04)',
+    axes: 'rgba(255,255,255,0.15)', cornerLabel: 'rgba(255,255,255,0.2)',
+    loaderFill: 'rgba(229,231,235,0.55)', loaderStroke: '#e5e7eb',
+    trailA: 'rgba(255,255,255,0.70)',
+    wpOutline: '#fff', wpArrowDefault: 'rgba(255,255,255,0.75)', wpLabel: '#fff',
+    gripOutline: '#111827',
+    particleLitBase: 48, particleLitDelta: 27,
+    confHigh: '#6ee7b7', confMid: '#fbbf24', confLow: '#f87171',
+  },
+};
+function toggleColorTheme() {
+  simTheme = simTheme === 'neutral' ? 'blue' : 'neutral';
+  document.body.classList.toggle('theme-blue', simTheme === 'blue');
+  document.getElementById('btn-theme').textContent =
+    simTheme === 'neutral' ? 'Switch to Blue Theme' : 'Switch to Neutral Theme';
+}
+
+// ── Auto-tuner state ──────────────────────────────────────────────────────────
+let tunerRunning  = false;
+let tunerTrial    = 0;
+const TUNE_TRIALS  = 60;  // total hill-climbing trials
+const TUNE_EXPLORE = 16;  // of which, pure-random exploration before perturbing the best-so-far
+let tunerBest     = { score: Infinity, params: null };
+
+// Keyboard
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  // Delete / Backspace removes the selected waypoint in auton mode
+  if ((e.key === 'Delete' || e.key === 'Backspace') && mode === 'auton' && !autopilotRunning) {
+    deleteSelectedWp();
+    e.preventDefault();
+    return;
+  }
+  // Escape deselects
+  if (e.key === 'Escape') { selectWp(-1); e.preventDefault(); return; }
+  e.preventDefault();
+}, { passive: false });
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ═══════════════════════════════════════════════════════════
+// Canvas
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('field');
+canvas.width  = CANVAS_SZ;
+canvas.height = CANVAS_SZ;
+const ctx = canvas.getContext('2d');
+
+// ── Canvas coordinate helpers ─────────────────────────────────────────────────
+const ARROW_PX = 22; // heading arrow length in canvas pixels (must match drawHeadingArrow)
+
+function canvasXY(e) {
+  const r = canvas.getBoundingClientRect();
+  return { px: e.clientX - r.left, py: e.clientY - r.top,
+           fx: (e.clientX - r.left - CANVAS_SZ/2) / SCALE,
+           fy: (CANVAS_SZ/2 - (e.clientY - r.top)) / SCALE };
+}
+
+// Hit-test: is (fx,fy) near a waypoint body dot? Returns idx (-2=start, ≥0=wp, -3=miss).
+function hitBody(fx, fy) {
+  const H2 = (15 / SCALE) ** 2;
+  const sdx = fx - autonStart.x, sdy = fy - autonStart.y;
+  if (sdx*sdx + sdy*sdy < H2) return -2;
+  for (let i = waypoints.length - 1; i >= 0; i--) {
+    const dx = fx - waypoints[i].x, dy = fy - waypoints[i].y;
+    if (dx*dx + dy*dy < H2) return i;
+  }
+  return -3; // -3 = no hit (same sentinel as hitArrowTip, so >= -2 checks work correctly)
+}
+
+// Hit-test: is (fx,fy) near a heading-arrow tip? Returns idx (-2=start, ≥0=wp, -3=miss).
+function hitArrowTip(fx, fy) {
+  const H2 = (11 / SCALE) ** 2;
+  const LF = ARROW_PX / SCALE; // arrow length in field inches
+  function tipHit(ox, oy, thetaDeg) {
+    const r = thetaDeg * PI / 180;
+    const tx = ox + Math.sin(r) * LF, ty = oy + Math.cos(r) * LF;
+    return (fx - tx) ** 2 + (fy - ty) ** 2 < H2;
+  }
+  if (tipHit(autonStart.x, autonStart.y, autonStart.theta)) return -2;
+  for (let i = waypoints.length - 1; i >= 0; i--) {
+    if (tipHit(waypoints[i].x, waypoints[i].y, waypoints[i].theta)) return i;
+  }
+  return -3;
+}
+
+// Apply a new heading (degrees) to a marker and sync all UI.
+function applyTheta(idx, deg) {
+  // Normalise to (-180, 180]
+  deg = ((deg + 180) % 360 + 360) % 360 - 180;
+  const clamped = Math.max(-180, Math.min(180, deg));
+  if (idx === -2) {
+    autonStart.theta = deg;
+    document.getElementById('sl-start-theta').value = clamped;
+    document.getElementById('vl-start-theta').textContent = Math.round(deg) + '°';
+  } else {
+    waypoints[idx].theta = deg;
+  }
+  if (selectedWpIdx === idx) {
+    document.getElementById('sl-wp-theta').value = clamped;
+    document.getElementById('vl-wp-theta').textContent = Math.round(deg) + '°';
+  }
+}
+
+// Update canvas cursor based on what's under the mouse.
+function updateCursor(fx, fy) {
+  if (mode !== 'auton' || autopilotRunning) { canvas.style.cursor = 'crosshair'; return; }
+  if (rotatingWpIdx >= -2) { canvas.style.cursor = 'crosshair'; return; }
+  if (draggingWpIdx >= -2) { canvas.style.cursor = 'grabbing'; return; }
+  if (hitArrowTip(fx, fy) >= -2) { canvas.style.cursor = 'ew-resize'; return; }
+  if (hitBody(fx, fy) >= -2)     { canvas.style.cursor = 'grab'; return; }
+  canvas.style.cursor = 'crosshair';
+}
+
+// ── Canvas event handlers ─────────────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return; // left button only
+  const { fx, fy } = canvasXY(e);
+  dragMovedPx = 0; dragPrevFx = fx; dragPrevFy = fy;
+
+  if (mode === 'auton' && !autopilotRunning) {
+    // Arrow tip → rotate mode (checked FIRST so tip isn't masked by its own dot)
+    const tip = hitArrowTip(fx, fy);
+    if (tip >= -2) { rotatingWpIdx = tip; selectWp(tip); return; }
+    // Body → drag mode
+    const body = hitBody(fx, fy);
+    if (body >= -2) { draggingWpIdx = body; selectWp(body); return; }
+    // Empty space → deselect (waypoint added on mouseup)
+    draggingWpIdx = -3; selectWp(-1);
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const { px, py, fx, fy } = canvasXY(e);
+  updateCursor(fx, fy);
+
+  // ── Arrow-tip rotation ────────────────────────────────────────────────────
+  if (rotatingWpIdx >= -2) {
+    const ox = rotatingWpIdx === -2 ? autonStart.x : waypoints[rotatingWpIdx].x;
+    const oy = rotatingWpIdx === -2 ? autonStart.y : waypoints[rotatingWpIdx].y;
+    const deg = Math.atan2(fx - ox, fy - oy) * (180 / PI); // CW from north
+    applyTheta(rotatingWpIdx, deg);
+    dragMovedPx = 99; // prevent waypoint add on mouseup
+    return;
+  }
+
+  // ── Position drag ─────────────────────────────────────────────────────────
+  if (draggingWpIdx < -2 || autopilotRunning) return;
+  const origPx = CANVAS_SZ/2 + dragPrevFx * SCALE;
+  const origPy = CANVAS_SZ/2 - dragPrevFy * SCALE;
+  dragMovedPx = Math.max(dragMovedPx, Math.abs(px - origPx) + Math.abs(py - origPy));
+  const lim = FIELD_H - ROBOT_H - 0.3;
+  const cx = Math.max(-lim, Math.min(lim, fx));
+  const cy = Math.max(-lim, Math.min(lim, fy));
+
+  if (draggingWpIdx === -2) {
+    autonStart.x = cx; autonStart.y = cy;
+    document.getElementById('in-start-x').value = cx.toFixed(1);
+    document.getElementById('in-start-y').value = cy.toFixed(1);
+    if (selectedWpIdx === -2) {
+      document.getElementById('in-wp-x').value = cx.toFixed(1);
+      document.getElementById('in-wp-y').value = cy.toFixed(1);
+    }
+  } else if (draggingWpIdx >= 0) {
+    waypoints[draggingWpIdx].x = cx;
+    waypoints[draggingWpIdx].y = cy;
+    recomputeSpline();
+    if (selectedWpIdx === draggingWpIdx) updateWpEditUI();
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  const wasRotating = rotatingWpIdx >= -2;
+  rotatingWpIdx = -3;
+  const { fx, fy } = canvasXY(e);
+
+  if ((objectPlaceKind || phantomPlaceArmed) && dragMovedPx < 6) {
+    if (objectPlaceKind) {
+      const [kind, side] = objectPlaceKind.split('-');
+      gameObjects.push({ x: fx, y: fy, kind, side });
+      updateObjectPlaceUI();
+    } else {
+      phantomObjects.push({ x: fx, y: fy, r: DYN_OBS_R });
+      updatePhantomPlaceUI();
+    }
+    draggingWpIdx = -3;
+    return;
+  }
+
+  if (!wasRotating && mode === 'auton' && !autopilotRunning
+      && draggingWpIdx === -3 && dragMovedPx < 6) {
+    // True click on empty space → add waypoint
+    const theta = computeAutoTheta(fx, fy);
+    waypoints.push({ x: fx, y: fy, theta,
+      type: 'moveToPose',
+      maxSpeed: 100, minSpeed: 0, timeout: 3000,
+      earlyExitRange: 0, forwards: true, lead: 0.6 });
+    recomputeSpline();
+    selectWp(waypoints.length - 1);
+  } else if (!wasRotating && mode === 'drive' && dragMovedPx < 6) {
+    robot.x = fx; robot.y = fy; vel.x = 0; vel.y = 0; clamp();
+  }
+  draggingWpIdx = -3;
+  updateCursor(fx, fy);
+});
+
+// Right-click a waypoint to instantly delete it.
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const { fx, fy } = canvasXY(e);
+
+  const obH2 = (8 / SCALE) ** 2;
+  for (let i = gameObjects.length - 1; i >= 0; i--) {
+    const o = gameObjects[i];
+    if ((fx - o.x) ** 2 + (fy - o.y) ** 2 < obH2) {
+      gameObjects.splice(i, 1);
+      updateObjectPlaceUI();
+      return;
+    }
+  }
+  for (let i = phantomObjects.length - 1; i >= 0; i--) {
+    const o = phantomObjects[i];
+    if ((fx - o.x) ** 2 + (fy - o.y) ** 2 < o.r * o.r) {
+      phantomObjects.splice(i, 1);
+      updatePhantomPlaceUI();
+      return;
+    }
+  }
+
+  if (mode !== 'auton' || autopilotRunning) return;
+  const hit = hitBody(fx, fy);
+  if (hit < 0) return; // -3 = no hit, -2 = start marker (neither can be deleted)
+  waypoints.splice(hit, 1);
+  recomputeSpline();
+  if (selectedWpIdx === hit) selectWp(-1);
+  else if (selectedWpIdx > hit) { selectedWpIdx--; updateWpEditUI(); }
+});
+
+canvas.addEventListener('mouseleave', () => { canvas.style.cursor = 'crosshair'; });
+
+// ═══════════════════════════════════════════════════════════
+// UI callbacks
+// ═══════════════════════════════════════════════════════════
+function onSlider() {
+  const N = parseInt(document.getElementById('sl-n').value);
+  document.getElementById('vl-n').textContent = N;
+
+  sensorNoise = parseFloat(document.getElementById('sl-snoise').value);
+  document.getElementById('vl-snoise').textContent = sensorNoise + ' mm';
+  // Note: sensorNoise is the SIMULATED noise. pf.cfg.sigHit is the filter's
+  // MODEL of sensor noise — tuned separately via sl-smodel.
+
+  sensorMaxRange = parseFloat(document.getElementById('sl-smaxr').value);
+  document.getElementById('vl-smaxr').textContent =
+    sensorMaxRange >= 9000 ? 'unlimited' : sensorMaxRange.toFixed(0) + ' mm';
+
+  odomNoisePct = parseFloat(document.getElementById('sl-enoise').value);
+  document.getElementById('vl-enoise').textContent = odomNoisePct.toFixed(1) + ' %';
+
+  imuDriftDegPerMin = parseFloat(document.getElementById('sl-imudrift').value);
+  document.getElementById('vl-imudrift').textContent = imuDriftDegPerMin.toFixed(1) + ' °/min';
+
+  occludePathRuns = document.getElementById('cb-occlpath').checked;
+  document.getElementById('vl-occlpath').textContent = occludePathRuns ? 'on' : 'off';
+
+  // Odom trust: controls how strongly sensors pull particles (z_hit/z_rand).
+  // 100% = sensors barely matter (odom drives estimate).
+  // 0%  = sensors dominate (odom only provides a loose prior).
+  const otrust = parseInt(document.getElementById('sl-otrust').value);
+  document.getElementById('vl-otrust').textContent = otrust + ' %';
+  pf.cfg.zHit  = 0.35 + (otrust / 100) * 0.55; // 0.35 (sensor-heavy) → 0.90 (odom-heavy)
+  pf.cfg.zRand = 1 - pf.cfg.zHit;
+
+  const rdeg = parseFloat(document.getElementById('sl-rot').value);
+  document.getElementById('vl-rot').textContent = rdeg + ' °/s';
+  rotSpeed = rdeg * PI / 180;
+
+  // ── Accuracy tuning sliders ────────────────────────────────
+  // Model σ_hit: filter's assumed sensor noise (mm). Lower = sharper discrimination.
+  // Separate from sim noise — optimal: set ≥ actual sensor variance.
+  const sm = parseFloat(document.getElementById('sl-smodel').value);
+  document.getElementById('vl-smodel').textContent = sm + ' mm';
+  pf.cfg.sigHit = sm;
+
+  // Random inject %: fraction of particles replaced with random poses each cycle.
+  // Lower = more particles refine the current estimate → more accurate when converged.
+  const inj = parseFloat(document.getElementById('sl-inject').value) / 100;
+  document.getElementById('vl-inject').textContent = (inj * 100).toFixed(1) + ' %';
+  pf.cfg.inject = inj;
+
+  // Robot half-size: centre-to-face distance used in ray-cast expected readings.
+  // Wrong value causes a systematic offset in ALL sensor comparisons.
+  const rh = parseFloat(document.getElementById('sl-rh').value);
+  document.getElementById('vl-rh').textContent = rh.toFixed(1) + ' in';
+  pf.cfg.rh = rh;
+
+  // Occlusion threshold: reading this much shorter than expected → dynamic obstacle.
+  // Lower = more conservative; higher = only treats large discrepancies as occlusions.
+  const occ = parseFloat(document.getElementById('sl-occ').value);
+  document.getElementById('vl-occ').textContent = occ + ' mm';
+  pf.cfg.occThr = occ;
+
+  // α rotation: predict-step noise added per radian turned.
+  // Controls a1 (heading error from rotation) and a2 (translation error from rotation).
+  const ar = parseFloat(document.getElementById('sl-arot').value) / 100;
+  document.getElementById('vl-arot').textContent = (ar * 100).toFixed(1) + ' %';
+  pf.cfg.a1 = ar;
+  pf.cfg.a2 = ar * 0.1;
+
+  // α translation: predict-step noise added per inch moved straight.
+  // Controls a3 (translation error from translation) and a4 (heading error from translation).
+  const at = parseFloat(document.getElementById('sl-atrans').value) / 100;
+  document.getElementById('vl-atrans').textContent = (at * 100).toFixed(1) + ' %';
+  pf.cfg.a3 = at;
+  pf.cfg.a4 = at;
+
+  pf.resize(N);
+
+  // ── Odom-primary sliders ───────────────────────────────────
+  sensorUpdateDist = parseFloat(document.getElementById('sl-supd').value);
+  document.getElementById('vl-supd').textContent = sensorUpdateDist.toFixed(0) + ' in';
+
+  neffThreshold = parseFloat(document.getElementById('sl-nefft').value);
+  document.getElementById('vl-nefft').textContent = neffThreshold.toFixed(2);
+
+  // ── Moving obstacles ───────────────────────────────────────
+  const obsN = parseInt(document.getElementById('sl-obs').value);
+  document.getElementById('vl-obs').textContent = obsN;
+  if (obsN !== numDynObs) { numDynObs = obsN; spawnDynObs(obsN); }
+
+  // ── Drivetrain & motor ─────────────────────────────────────
+  driveRpm = parseFloat(document.getElementById('sl-rpm').value);
+  document.getElementById('vl-rpm').textContent = driveRpm.toFixed(0);
+
+  driveWheelDia = parseFloat(document.getElementById('sl-wheel').value);
+  document.getElementById('vl-wheel').textContent = driveWheelDia.toFixed(2) + ' in';
+
+  driveTrackW = parseFloat(document.getElementById('sl-trackw').value);
+  document.getElementById('vl-trackw').textContent = driveTrackW.toFixed(1) + ' in';
+
+  // Free speed = (rpm/60) rev/s × π·Ø inches/rev.
+  freeSpeed = (driveRpm / 60) * PI * driveWheelDia;
+  document.getElementById('sv-topspd').textContent =
+    freeSpeed.toFixed(1) + ' "/s  (' + (freeSpeed / 12).toFixed(2) + ' ft/s)';
+
+  motorAccel = parseFloat(document.getElementById('sl-macc').value);
+  document.getElementById('vl-macc').textContent = motorAccel.toFixed(0);
+
+  // ── Drive physics ──────────────────────────────────────────
+  robotMass = parseFloat(document.getElementById('sl-mass').value);
+  document.getElementById('vl-mass').textContent = robotMass.toFixed(1) + ' kg';
+
+  muBack = parseFloat(document.getElementById('sl-mufa').value);
+  document.getElementById('vl-mufa').textContent = muBack.toFixed(2);
+
+  muSide = parseFloat(document.getElementById('sl-mula').value);
+  document.getElementById('vl-mula').textContent = muSide.toFixed(2);
+}
+
+function toggleLayer(name) {
+  layers[name] = !layers[name];
+  const el = document.getElementById('tb-' + name);
+  el.classList.toggle('on', layers[name]);
+}
+
+function kidnap() {
+  // Use cfg.N so this can safely be called before any particles exist.
+  const N = pf.cfg.N, w = 1/N;
+  pf.ps = Array.from({ length: N }, () => ({
+    x:  (Math.random()*2-1)*FIELD_H,
+    y:  (Math.random()*2-1)*FIELD_H,
+    th: sampleN(robot.th, 0.05),
+    w,
+  }));
+  pf.freshFrom = N;   // a full scatter is the estimate now, not a side bet
+}
+
+function resetRobot() {
+  robot = { ...START };
+  odomPose = { ...START };
+  vel.x = 0; vel.y = 0;
+  fwdWheelAngle = 0; latWheelAngle = 0;
+  fwdEncCdeg = 0; latEncCdeg = 0; dFwdCdeg = 0; dLatCdeg = 0;
+  distanceSinceUpdate = 0;
+  timeSinceUpdate = 1e9;
+  imuDriftRad = 0;
+  pf.speedIps = 0;
+  pf.collapsed = false;
+  pf.imuHeading = robot.th;
+  // Seed the particle cloud tightly around the known start so the Monte-Carlo
+  // estimate and the odometry pose agree on reset (odom = MC predicted position,
+  // not a stale/divergent value). Use the Kidnap button to test recovery instead.
+  pf.init(START);
+  est  = { ...START };
+  conf = pf.neff();
+  trailT.length = 0; trailE.length = 0; trailO.length = 0;
+}
+
+function togglePause() {
+  paused = !paused;
+  document.getElementById('btn-pause').textContent = paused ? 'Resume' : 'Pause';
+  document.getElementById('pause-overlay').classList.toggle('show', paused);
+  if (!paused) lastMs = null;
+}
+
+function clamp() {
+  const lim = FIELD_H - ROBOT_H - 0.3;
+  robot.x = Math.max(-lim, Math.min(lim, robot.x));
+  robot.y = Math.max(-lim, Math.min(lim, robot.y));
+}
+
+// ── Ray–circle intersection (returns first positive distance in inches) ────────
+function rayCircleInch(ox, oy, dx, dy, cx, cy, cr) {
+  const fx = ox - cx, fy = oy - cy;
+  const b   = 2 * (fx*dx + fy*dy);
+  const c0  = fx*fx + fy*fy - cr*cr;
+  const disc = b*b - 4*c0;             // direction is normalised so a=1
+  if (disc < 0) return Infinity;
+  const t = (-b - Math.sqrt(disc)) * 0.5;
+  return t > 0.05 ? t : Infinity;
+}
+
+// ── Sensor readings with dynamic obstacle occlusion ───────────────────────────
+// Returns {front,back,left,right} in mm, matching what the real sensors would
+// report: wall/goal distances shortened when a moving obstacle is in the way.
+function computeSensorReadings(pose) {
+  const axes = ['front', 'back', 'right', 'left'].map(k => ({ k, ...sensorRay(pose, k) }));
+  const wallR = field.expected(pose);
+  const meas  = {};
+  for (const ax of axes) {
+    let d = wallR[ax.k] * IPMM;           // wall/goal distance in inches
+    if (!autopilotRunning || occludePathRuns) {
+      for (const obs of dynObs) {         // check each moving obstacle
+        const t = rayCircleInch(ax.ox, ax.oy, ax.dx, ax.dy, obs.x, obs.y, obs.r);
+        if (t < d) d = t;                 // obstacle is closer — occlude the ray
+      }
+    }
+    for (const obs of phantomObjects) {   // user-placed, unmapped — always occludes
+      const t = rayCircleInch(ax.ox, ax.oy, ax.dx, ax.dy, obs.x, obs.y, obs.r);
+      if (t < d) d = t;
+    }
+    // Real V5 distance sensor: no return beyond ~2 m → reports 9999 (invalid,
+    // and the filter skips it). Without this cap the sim hands the filter
+    // full-field readings the robot will never actually get. The mount's base
+    // reading (mm bias) is added here — the sensor reports it — and removed
+    // again by correctReadings() before the filter, like the real robot does.
+    const mm = d * MPIN + sampleN(0, sensorNoise) + SENSOR_MOUNTS[ax.k].base;
+    meas[ax.k] = mm > sensorMaxRange ? 9999 : Math.max(1, mm);
+  }
+  return meas;
+}
+
+// Mirror of Localizer::readSensors()'s base-reading correction: subtract each
+// sensor's calibrated bias from the raw reading before the filter sees it.
+function correctReadings(meas) {
+  const out = {};
+  for (const k of ['front', 'back', 'left', 'right']) {
+    const raw = meas[k];
+    out[k] = raw >= 9000 ? 9999 : Math.max(1, raw - SENSOR_MOUNTS[k].base);
+  }
+  return out;
+}
+
+// ── Dynamic obstacle physics ───────────────────────────────────────────────────
+function spawnDynObs(n) {
+  dynObs.length = 0;
+  for (let i = 0; i < n; i++) {
+    const ang   = Math.random() * TWO_PI;
+    const speed = 6 + Math.random() * 10;   // 6–16 in/s
+    const margin = FIELD_H * 0.7;
+    dynObs.push({
+      x:  (Math.random() * 2 - 1) * margin,
+      y:  (Math.random() * 2 - 1) * margin,
+      vx: Math.cos(ang) * speed,
+      vy: Math.sin(ang) * speed,
+      r:  DYN_OBS_R,
+    });
+  }
+}
+
+function updateDynObs(dt) {
+  const wall = FIELD_H - DYN_OBS_R - 0.5;
+  for (const o of dynObs) {
+    o.x += o.vx * dt;
+    o.y += o.vy * dt;
+    if (o.x >  wall) { o.x =  wall; o.vx *= -1; }
+    if (o.x < -wall) { o.x = -wall; o.vx *= -1; }
+    if (o.y >  wall) { o.y =  wall; o.vy *= -1; }
+    if (o.y < -wall) { o.y = -wall; o.vy *= -1; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Simulation loop
+// ═══════════════════════════════════════════════════════════
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const dt = lastMs === null ? 0 : Math.min((ts - lastMs) / 1000, 0.05);
+  lastMs = ts;
+
+  if (paused || dt === 0) { render(null); return; }
+
+  // ── robot movement: keyboard physics OR autopilot pure pursuit ───────────
+  let dh = 0, dxw = 0, dyw = 0;
+
+  if (autopilotRunning) {
+    const pp = moveToPoseStep(dt);
+    dh = pp.dh; dxw = pp.dxw; dyw = pp.dyw;
+  } else {
+    if (keys['a'] || keys['A']) dh -= rotSpeed * dt;
+    if (keys['d'] || keys['D']) dh += rotSpeed * dt;
+    robot.th = wrap(robot.th + dh);
+    const aMax   = motorAccel * (REF_MASS / robotMass);
+    const fwdKey = keys['w']||keys['W']||keys['ArrowUp'];
+    const bwdKey = keys['s']||keys['S']||keys['ArrowDown'];
+    let vF = vel.x * Math.sin(robot.th) + vel.y * Math.cos(robot.th);
+    let vL = vel.x * Math.cos(robot.th) - vel.y * Math.sin(robot.th);
+    if (fwdKey) { const a = aMax*(1-vF/freeSpeed); if(a>0) vF=Math.min( freeSpeed,vF+a*dt); }
+    if (bwdKey) { const a = aMax*(1+vF/freeSpeed); if(a>0) vF=Math.max(-freeSpeed,vF-a*dt); }
+    if (keys['ArrowLeft'])  vL -= aMax * dt;
+    if (keys['ArrowRight']) vL += aMax * dt;
+    const driving = fwdKey || bwdKey;
+    if (!driving) vF = applyFriction(vF, muBack * G_SIM * dt);
+    vL = applyFriction(vL, muSide * G_SIM * dt);
+    vel.x = vF*Math.sin(robot.th) + vL*Math.cos(robot.th);
+    vel.y = vF*Math.cos(robot.th) - vL*Math.sin(robot.th);
+    dxw = vel.x * dt; dyw = vel.y * dt;
+    robot.x += dxw; robot.y += dyw;
+    const lim = FIELD_H - ROBOT_H - 0.3;
+    if (robot.x >  lim) { robot.x =  lim; if (vel.x > 0) vel.x = 0; }
+    if (robot.x < -lim) { robot.x = -lim; if (vel.x < 0) vel.x = 0; }
+    if (robot.y >  lim) { robot.y =  lim; if (vel.y > 0) vel.y = 0; }
+    if (robot.y < -lim) { robot.y = -lim; if (vel.y < 0) vel.y = 0; }
+  }
+  // s,c from final robot.th (used by odom section below)
+  const s = Math.sin(robot.th), c = Math.cos(robot.th);
+
+  // ── tracking-wheel odometry: measures TRUE ground motion + encoder noise ──
+  // The unpowered tracking wheels roll with actual ground travel, so the
+  // horizontal wheel captures drift too — but encoder noise accumulates and is
+  // exactly what the distance-sensor correction removes downstream.
+  const trueDF = dxw * s + dyw * c;   // forward ground travel (inches)
+  const trueDL = dxw * c - dyw * s;   // lateral ground travel (inches)
+  const eSig   = odomNoisePct * 0.01;
+  const odomDF = trueDF + sampleN(0, Math.abs(trueDF) * eSig);
+  const odomDL = trueDL + sampleN(0, Math.abs(trueDL) * eSig);
+
+  // IMU drift: the measured heading delta includes the per-frame drift step,
+  // so everything downstream (odom pose, PF predict, imuHeading hint) sees
+  // exactly what a drifting IMU would report.
+  const driftStep = imuDriftDegPerMin / 60 * dt * (PI / 180);
+  imuDriftRad += driftStep;
+  const dhMeas = dh + driftStep;
+
+  dFwdCdeg = 0; dLatCdeg = 0;
+  if (odomDF || odomDL || dhMeas) {
+    const mid = odomPose.th + dhMeas * 0.5;
+    odomPose.x  += odomDF * Math.sin(mid) + odomDL * Math.cos(mid);
+    odomPose.y  += odomDF * Math.cos(mid) - odomDL * Math.sin(mid);
+    odomPose.th  = wrap(odomPose.th + dhMeas);  // heading as the IMU reports it
+    // Incremental encoders: Δcentidegrees = (arc / circumference) × 36000.
+    const circ = TWO_PI * WHEEL_R;
+    dFwdCdeg = (odomDF / circ) * 36000;
+    dLatCdeg = (odomDL / circ) * 36000;
+    fwdEncCdeg += dFwdCdeg;
+    latEncCdeg += dLatCdeg;
+    // Spin the visual wheels (radians = arc / radius).
+    fwdWheelAngle += odomDF / WHEEL_R;
+    latWheelAngle += odomDL / WHEEL_R;
+  }
+
+  // ── dynamic obstacles + sensor readings (with occlusion) ─────────────────
+  updateDynObs(dt);
+  const meas = computeSensorReadings(robot);
+
+  // ── particle filter: odom-primary architecture ────────────────────────────
+  // predict() runs every frame — odom is the continuous baseline.
+  // update() + resample() fire only when confidence drops below neffThreshold
+  // OR the robot has travelled sensorUpdateDist since the last correction.
+  // Set Update interval = 0 to restore the always-correct behaviour.
+  pf.imuHeading = wrap(robot.th + imuDriftRad);   // what the IMU believes
+  pf.speedIps   = Math.hypot(odomDF, odomDL) / dt; // for staleness σ inflation
+  if (odomDF || odomDL || dhMeas) {
+    pf.predict({ fwd: odomDF, lat: odomDL, dth: dhMeas });
+    distanceSinceUpdate += Math.hypot(odomDF, odomDL);
+  }
+  timeSinceUpdate += dt;
+  // Neff-forced corrections are rate-limited (correlated readings + repeated
+  // resampling impoverish the particle set); distance trigger is untouched.
+  sensorActive = (conf < neffThreshold && timeSinceUpdate >= NEFF_RETRIGGER_S)
+              || distanceSinceUpdate >= sensorUpdateDist;
+  if (sensorActive) {
+    pf.update(correctReadings(meas));
+    // A collapsed update means "nothing matched" — that is zero confidence,
+    // not the Neff=1 the artificial uniform reset would report.
+    conf = pf.collapsed ? 0 : pf.neff();
+    pf.resample();
+    distanceSinceUpdate = 0;
+    timeSinceUpdate    = 0;
+  }
+  est = pf.best();
+
+  // ── trails ────────────────────────────────────────────────
+  if (trailT.length >= TRAIL) trailT.shift();
+  if (trailE.length >= TRAIL) trailE.shift();
+  if (trailO.length >= TRAIL) trailO.shift();
+  if (trailA.length >= TRAIL) trailA.shift();
+  trailT.push({ x: robot.x,    y: robot.y    });
+  trailE.push({ x: est.x,      y: est.y      });   // AMCL estimate trail (red)
+  trailO.push({ x: odomPose.x, y: odomPose.y });   // dead-reckoning odom trail (purple)
+  if (autopilotRunning) trailA.push({ x: robot.x, y: robot.y }); // actual autonomous run path
+
+  // ── stats ─────────────────────────────────────────────────
+  const R2D = 180/PI;
+  setText('sv-tx',  robot.x.toFixed(1) + '"');
+  setText('sv-ty',  robot.y.toFixed(1) + '"');
+  setText('sv-th',  (robot.th * R2D).toFixed(1) + '°');
+  setText('sv-ex',  est.x.toFixed(1) + '"');
+  setText('sv-ey',  est.y.toFixed(1) + '"');
+  setText('sv-eh',  (est.th * R2D).toFixed(1) + '°');
+  const err = Math.hypot(est.x-robot.x, est.y-robot.y);
+  const errEl = document.getElementById('sv-err');
+  errEl.textContent = err.toFixed(2) + '"';
+  errEl.className   = 'stat-val ' + (err < 2 ? 'good' : err < 5 ? 'warn' : 'bad');
+  setText('sv-neff', conf.toFixed(3));
+  document.getElementById('sv-bar').style.width      = (conf*100).toFixed(0) + '%';
+  { const ft = FIELD_THEME[simTheme];
+    document.getElementById('sv-bar').style.background =
+      conf > 0.7 ? ft.confHigh : conf > 0.4 ? ft.confMid : ft.confLow; }
+  const sactEl = document.getElementById('sv-sact');
+  sactEl.textContent = sensorActive ? 'ACTIVE' : 'idle';
+  sactEl.className   = 'stat-val ' + (sensorActive ? 'good' : '');
+  setText('sv-sdist', distanceSinceUpdate.toFixed(1) + '"/' + sensorUpdateDist.toFixed(0) + '"');
+  setText('sv-ox',  odomPose.x.toFixed(1) + '"');
+  setText('sv-oy',  odomPose.y.toFixed(1) + '"');
+  setText('sv-oh',  (odomPose.th * R2D).toFixed(1) + '°');
+  const oerr = Math.hypot(odomPose.x-robot.x, odomPose.y-robot.y);
+  const oErrEl = document.getElementById('sv-oerr');
+  oErrEl.textContent = oerr.toFixed(2) + '"';
+  oErrEl.className   = 'stat-val ' + (oerr < 2 ? 'good' : oerr < 5 ? 'warn' : 'bad');
+  const sgn = v => (v >= 0 ? '+' : '');
+  setText('sv-encf',  (fwdEncCdeg / 100).toFixed(1) + '°');
+  setText('sv-encfd', sgn(dFwdCdeg) + (dFwdCdeg / 100).toFixed(2) + '°');
+  setText('sv-encl',  (latEncCdeg / 100).toFixed(1) + '°');
+  setText('sv-encld', sgn(dLatCdeg) + (dLatCdeg / 100).toFixed(2) + '°');
+  setText('sv-sf', meas.front.toFixed(0));
+  setText('sv-sb', meas.back.toFixed(0));
+  setText('sv-sl', meas.left.toFixed(0));
+  setText('sv-sr', meas.right.toFixed(0));
+
+  render(meas);
+}
+
+function setText(id, v) { document.getElementById(id).textContent = v; }
+
+// ═══════════════════════════════════════════════════════════
+// Rendering
+// ═══════════════════════════════════════════════════════════
+function render(readings) {
+  ctx.clearRect(0, 0, CANVAS_SZ, CANVAS_SZ);
+  ctx.setLineDash([]);
+
+  drawField();
+  if (mode === 'auton') drawAutonPath();
+  if (layers.trail)     drawTrails();
+  if (layers.odom)      drawOdom();
+  if (layers.dynobs)    drawDynObs();
+  if (layers.particles) drawParticles();
+  if (layers.sensors && readings) drawSensors(robot, readings);
+  if (layers.estimate)  drawRobot(est,   '#ef5350', true);
+  drawRobot(robot, '#4fc3f7', false);
+}
+
+// ── Field ─────────────────────────────────────────────────
+function drawField() {
+  const ft = FIELD_THEME[simTheme];
+
+  // Background
+  ctx.fillStyle = ft.bg;
+  ctx.fillRect(0, 0, CANVAS_SZ, CANVAS_SZ);
+
+  // Alternating floor tiles (24" = one VEX tile)
+  const tile = 24 * SCALE;
+  const cx0  = CANVAS_SZ / 2, cy0 = CANVAS_SZ / 2;
+  for (let i = -4; i < 4; i++) {
+    for (let j = -4; j < 4; j++) {
+      ctx.fillStyle = (i + j) % 2 === 0 ? ft.tileA : ft.tileB;
+      ctx.fillRect(cx0 + i*tile, cy0 + j*tile, tile, tile);
+    }
+  }
+
+  // Inner field boundary
+  const iH = FIELD_H * SCALE;
+  ctx.strokeStyle = ft.boundary;
+  ctx.lineWidth   = 1;
+  ctx.strokeRect(cx0 - iH, cy0 - iH, iH*2, iH*2);
+
+  // Perimeter wall (1" thick, shown as a thick coloured border)
+  const oH = (FIELD_H + 1) * SCALE;
+  ctx.strokeStyle = ft.wall;
+  ctx.lineWidth   = 2 * SCALE;  // 2" visual width
+  ctx.beginPath();
+  ctx.rect(cx0 - oH + SCALE, cy0 - oH + SCALE,
+           (oH - SCALE)*2,  (oH - SCALE)*2);
+  ctx.stroke();
+
+  // Toggles — pink structures at wall midpoints (real field colour per
+  // Override game manual: Alliance Stations orange, Loaders white,
+  // Toggles pink, Goals green)
+  for (const [ax1,ay1,ax2,ay2] of [
+    [-TW, FIELD_H-TD, TW, FIELD_H], [-TW, -FIELD_H, TW, -FIELD_H+TD],
+    [FIELD_H-TD, -TW, FIELD_H, TW], [-FIELD_H, -TW, -FIELD_H+TD, TW],
+  ]) {
+    const [px1,py1] = tc(ax1, ay2), [px2,py2] = tc(ax2, ay1);
+    ctx.fillStyle   = 'rgba(236,72,153,0.35)';
+    ctx.fillRect(px1, py1, px2-px1, py2-py1);
+    ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 1;
+    ctx.strokeRect(px1, py1, px2-px1, py2-py1);
+  }
+  // Loaders — white structures on left/right walls
+  for (const [ax1,ay1,ax2,ay2] of [
+    [-FIELD_H, 60-LW, -FIELD_H+LD, 60+LW],
+    [-FIELD_H,-60-LW, -FIELD_H+LD,-60+LW],
+    [FIELD_H-LD, 60-LW, FIELD_H,   60+LW],
+    [FIELD_H-LD,-60-LW, FIELD_H,  -60+LW],
+  ]) {
+    const [px1,py1] = tc(ax1, ay2), [px2,py2] = tc(ax2, ay1);
+    ctx.fillStyle   = ft.loaderFill;
+    ctx.fillRect(px1, py1, px2-px1, py2-py1);
+    ctx.strokeStyle = ft.loaderStroke; ctx.lineWidth = 1.5;
+    ctx.strokeRect(px1, py1, px2-px1, py2-py1);
+  }
+  // Alliance stations — simplified orange markers behind each corner goal
+  // (the manual doesn't give exact driver-station dimensions in text form;
+  // this is a visual placeholder, not used for collision/sensing).
+  for (const [ax, ay] of [[-48,-24],[-24,-48],[24,48],[48,24]]) {
+    const ox = ax + Math.sign(ax || 1) * 9, oy = ay + Math.sign(ay || 1) * 9;
+    const [px, py] = tc(ox, oy);
+    ctx.fillStyle = 'rgba(249,115,22,0.55)';
+    ctx.fillRect(px - 4*SCALE, py - 4*SCALE, 8*SCALE, 8*SCALE);
+    ctx.strokeStyle = '#f97316'; ctx.lineWidth = 1;
+    ctx.strokeRect(px - 4*SCALE, py - 4*SCALE, 8*SCALE, 8*SCALE);
+  }
+  // Goals — green structures (real field colour); a thin alliance-tinted
+  // ring shows which corner goals belong to which alliance for gameplay
+  // clarity without misrepresenting the physical part colour.
+  const goalRing = { red: '#ef5350', blue: '#42a5f5', short: '#9ca3af', tall: '#fbbf24' };
+  for (const g of GOALS) {
+    const [gx,gy] = tc(g.x, g.y);
+    const gr = GH * SCALE;
+    ctx.beginPath(); ctx.arc(gx, gy, gr, 0, TWO_PI);
+    ctx.fillStyle = 'rgba(34,197,94,0.30)'; ctx.fill();
+    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke();
+    ctx.beginPath(); ctx.arc(gx, gy, gr + 2, 0, TWO_PI);
+    ctx.strokeStyle = goalRing[g.type]; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(gx, gy, 2, 0, TWO_PI);
+    ctx.fillStyle = goalRing[g.type]; ctx.fill();
+  }
+
+  drawGameObjects();
+  drawPhantomObjects();
+
+  // Faint grid lines every 24"
+  ctx.strokeStyle = ft.grid;
+  ctx.lineWidth   = 0.5;
+  ctx.setLineDash([]);
+  for (let i = -3; i <= 3; i++) {
+    const [lx] = tc(i * 24, 0);
+    ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, CANVAS_SZ); ctx.stroke();
+    const [, ly] = tc(0, i * 24);
+    ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(CANVAS_SZ, ly); ctx.stroke();
+  }
+
+  // Coordinate axes
+  ctx.strokeStyle = ft.axes;
+  ctx.lineWidth   = 0.5;
+  const [acx, acy] = tc(0, 0);
+  ctx.beginPath(); ctx.moveTo(acx-12, acy); ctx.lineTo(acx+12, acy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(acx, acy-12); ctx.lineTo(acx, acy+12); ctx.stroke();
+
+  // Corner labels
+  ctx.fillStyle = ft.cornerLabel;
+  ctx.font      = '9px monospace';
+  ctx.textAlign = 'left';
+  const corners = [[-60,-60],[60,-60],[-60,60],[60,60]];
+  for (const [fx,fy] of corners) {
+    const [px,py] = tc(fx, fy);
+    ctx.fillText(`(${fx},${fy})`, px+3, py-3);
+  }
+}
+
+// ── Trails ───────────────────────────────────────────────
+// trailT: full true path (faint cyan)
+// trailE: AMCL estimated path (dashed red)
+// trailA: actual autonomous run path (bold, drawn over others)
+function drawTrails() {
+  drawPolyline(trailT, 'rgba(79,195,247,0.25)', 1.5, false);
+  drawPolyline(trailE, 'rgba(239,83,80,0.40)',  1.5, true);
+  drawPolyline(trailA, FIELD_THEME[simTheme].trailA, 2.0, false);  // actual run path
+}
+
+function drawPolyline(pts, color, lw, dashed) {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  const [sx, sy] = tc(pts[0].x, pts[0].y);
+  ctx.moveTo(sx, sy);
+  for (let i = 1; i < pts.length; i++) {
+    const [px, py] = tc(pts[i].x, pts[i].y);
+    ctx.lineTo(px, py);
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = lw;
+  ctx.setLineDash(dashed ? [4,3] : []);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ── Particles ─────────────────────────────────────────────
+function drawParticles() {
+  let maxW = 0;
+  for (const p of pf.ps) if (p.w > maxW) maxW = p.w;
+  if (maxW <= 0) return;
+  const inv = 1 / maxW;
+
+  const ft = FIELD_THEME[simTheme];
+  for (const p of pf.ps) {
+    const t = p.w * inv;            // 0 = low, 1 = high
+    // Hue 220 (blue) → 150 (green), saturation up, lightness shifts per theme
+    const hue  = 220 - t * 70;
+    const sat  = 60 + t * 40;
+    const lit  = ft.particleLitBase + t * ft.particleLitDelta;
+    const alpha = 0.55 + t * 0.45; // min 0.55 → scattered cloud is visible
+    ctx.fillStyle = `hsla(${hue},${sat}%,${lit}%,${alpha})`;
+    const [px, py] = tc(p.x, p.y);
+    const r = 1.2 + t * 2.8;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, TWO_PI); ctx.fill();
+  }
+}
+
+// ── Robot square ─────────────────────────────────────────
+function drawRobot(pose, colour, dashed) {
+  const [cx, cy] = tc(pose.x, pose.y);
+  const h = ROBOT_H * SCALE;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  // CW-positive θ from north maps correctly: ctx.rotate(θ) is CW on screen
+  ctx.rotate(pose.th);
+
+  if (dashed) {
+    // Estimated: dashed outline only
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = colour;
+    ctx.lineWidth   = 2;
+    ctx.strokeRect(-h, -h, h*2, h*2);
+    // Heading tick
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -h * 0.8);
+    ctx.strokeStyle = colour;
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+  } else {
+    // True robot: filled body
+    ctx.fillStyle   = colour + '22';
+    ctx.fillRect(-h, -h, h*2, h*2);
+    ctx.strokeStyle = colour;
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([]);
+    ctx.strokeRect(-h, -h, h*2, h*2);
+
+    // Forward arrow (pointing toward local -y = canvas up = field north at θ=0)
+    const tip  = -h + 6;
+    const base = -h * 0.25;
+    ctx.beginPath();
+    ctx.moveTo(0, base);
+    ctx.lineTo(0, tip + 6);
+    ctx.strokeStyle = colour;
+    ctx.lineWidth   = 2.5;
+    ctx.stroke();
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(-5, tip + 10);
+    ctx.lineTo(0,  tip);
+    ctx.lineTo(5,  tip + 10);
+    ctx.fillStyle = colour;
+    ctx.fill();
+
+    // ── Tracking wheels ───────────────────────────────────────
+    // Forward wheel: left side (local -x), axle horizontal, spins with fwd motion
+    // Lateral wheel: rear (local +y), axle vertical, spins with lateral motion
+    const wr = h * 0.22;  // wheel radius in canvas px
+    const drawWheel = (tx, ty, angle) => {
+      ctx.save();
+      ctx.translate(tx, ty);
+      ctx.strokeStyle = colour + 'cc';
+      ctx.lineWidth   = 1;
+      // Wheel rim
+      ctx.beginPath(); ctx.arc(0, 0, wr, 0, TWO_PI); ctx.stroke();
+      // Spoke (rotates with wheel)
+      ctx.save();
+      ctx.rotate(angle);
+      ctx.beginPath(); ctx.moveTo(0, -wr * 0.85); ctx.lineTo(0, wr * 0.85); ctx.stroke();
+      ctx.restore();
+      // Hub dot
+      ctx.beginPath(); ctx.arc(0, 0, 2, 0, TWO_PI);
+      ctx.fillStyle = colour; ctx.fill();
+      ctx.restore();
+    };
+    drawWheel(-h * 0.72, 0,          fwdWheelAngle);  // forward wheel on left
+    drawWheel(0,          h * 0.72,  latWheelAngle);  // lateral wheel on rear
+  }
+  ctx.restore();
+}
+
+// ── Odometry estimate + trail ─────────────────────────────
+function drawOdom() {
+  // Purple trail for dead-reckoning path
+  drawPolyline(trailO, 'rgba(167,139,250,0.4)', 1.5, false);
+  // Odom pose as a dotted purple box
+  const [cx, cy] = tc(odomPose.x, odomPose.y);
+  const h = ROBOT_H * SCALE;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(odomPose.th);
+  ctx.setLineDash([3, 4]);
+  ctx.strokeStyle = '#a78bfa';
+  ctx.lineWidth   = 1.5;
+  ctx.strokeRect(-h, -h, h*2, h*2);
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(0, -h * 0.7);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── Dynamic obstacles ─────────────────────────────────────
+function drawDynObs() {
+  for (const o of dynObs) {
+    const [px, py] = tc(o.x, o.y);
+    const pr = o.r * SCALE;
+
+    // Filled body
+    ctx.beginPath(); ctx.arc(px, py, pr, 0, TWO_PI);
+    ctx.fillStyle = 'rgba(249,115,22,0.22)'; ctx.fill();
+
+    // Dashed border
+    ctx.strokeStyle = '#f97316'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+
+    // Velocity arrow
+    const spd = Math.hypot(o.vx, o.vy);
+    if (spd > 0.1) {
+      const scale = (pr * 0.65) / spd;
+      const [ex, ey] = tc(o.x + o.vx * scale / SCALE, o.y + o.vy * scale / SCALE);
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(ex, ey);
+      ctx.strokeStyle = 'rgba(249,115,22,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+  }
+}
+
+// ── Sensor rays ───────────────────────────────────────────
+function drawSensors(pose, readings) {
+  const s  = Math.sin(pose.th), c = Math.cos(pose.th);
+  const rh = ROBOT_H;
+
+  const sensors = [
+    { k:'front', ox: pose.x + rh*s, oy: pose.y + rh*c, dx:  s, dy:  c },
+    { k:'back',  ox: pose.x - rh*s, oy: pose.y - rh*c, dx: -s, dy: -c },
+    { k:'right', ox: pose.x + rh*c, oy: pose.y - rh*s, dx:  c, dy: -s },
+    { k:'left',  ox: pose.x - rh*c, oy: pose.y + rh*s, dx: -c, dy:  s },
+  ];
+
+  for (const sen of sensors) {
+    const dIn = readings[sen.k] * IPMM;
+    const ex  = sen.ox + sen.dx * dIn;
+    const ey  = sen.oy + sen.dy * dIn;
+
+    const [x1, y1] = tc(sen.ox, sen.oy);
+    const [x2, y2] = tc(ex, ey);
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = 'rgba(251,191,36,0.5)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([]);
+    ctx.stroke();
+
+    // Hit dot
+    ctx.beginPath();
+    ctx.arc(x2, y2, 3, 0, TWO_PI);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fill();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Auto-tuner — hill-climbing over AMCL noise parameters
+// Runs TUNE_TRIALS silent simulation trials (each scored over several
+// independent 8 s rollouts — see ROLLOUTS in _evalParams), then applies the
+// parameter set that gave the lowest mean error.
+// ═══════════════════════════════════════════════════════════
+function startAutoTune() {
+  if (tunerRunning) {
+    tunerRunning = false;
+    document.getElementById('btn-tune').textContent = `Auto Tune (${TUNE_TRIALS} trials)`;
+    setText('sv-tune', 'Stopped.');
+    return;
+  }
+  tunerRunning = true;
+  tunerTrial   = 0;
+  tunerBest    = { score: Infinity, params: null };
+  document.getElementById('btn-tune').textContent = 'Stop';
+  setText('sv-tune', 'Trial 1/' + TUNE_TRIALS + ' running…');
+  setTimeout(runTunerStep, 0);
+}
+
+function runTunerStep() {
+  if (!tunerRunning || tunerTrial >= TUNE_TRIALS) {
+    tunerRunning = false;
+    document.getElementById('btn-tune').textContent = `Auto Tune (${TUNE_TRIALS} trials)`;
+    if (tunerBest.params) {
+      _applyTunerParams(tunerBest.params);
+      setText('sv-tune', 'Done — best error: ' + tunerBest.score.toFixed(2) + '"');
+    }
+    return;
+  }
+  const params = tunerTrial < TUNE_EXPLORE
+    ? _tuneSample()
+    : _tunePerturb(tunerBest.params ?? _tuneSample());
+  const score = _evalParams(params);
+  if (score < tunerBest.score) tunerBest = { score, params: { ...params } };
+  tunerTrial++;
+  setText('sv-tune', 'Trial ' + tunerTrial + '/' + TUNE_TRIALS +
+          ' — best: ' + tunerBest.score.toFixed(1) + '"');
+  setTimeout(runTunerStep, 0);
+}
+
+function _tuneSample() {
+  const a1 = 0.002 + Math.random() * 0.25;
+  const a3 = 0.002 + Math.random() * 0.25;
+  return {
+    sigHit: 8   + Math.random() * 80,
+    inject: 0.005 + Math.random() * 0.14,
+    a1, a2: a1 * 0.1,
+    a3, a4: a3,
+    occThr: 75 + Math.random() * 450,
+  };
+}
+
+function _tunePerturb(b) {
+  const p = (v, lo, hi, s) =>
+    Math.max(lo, Math.min(hi, v + sampleN(0, (hi - lo) * s)));
+  const a1 = p(b.a1, 0.002, 0.3,  0.10);
+  const a3 = p(b.a3, 0.002, 0.3,  0.10);
+  return {
+    sigHit: p(b.sigHit, 5,    100,  0.12),
+    inject: p(b.inject, 0.005, 0.15, 0.08),
+    a1, a2: a1 * 0.1,
+    a3, a4: a3,
+    occThr: p(b.occThr, 50,  600,  0.08),
+  };
+}
+
+// Score a parameter set: mean position error over several independent 8-second
+// rollouts. Multiple rollouts because a single noisy trial lets the hill
+// climber select lucky noise draws instead of genuinely better parameters.
+function _evalParams(params) {
+  const ROLLOUTS = 5;
+  let sum = 0;
+  for (let r = 0; r < ROLLOUTS; r++) sum += _evalRollout(params);
+  return sum / ROLLOUTS;
+}
+
+// One silent rollout. Deliberately matches deployment conditions:
+//   • encoder noise on the odometry deltas fed to predict() (a tuner fed
+//     perfect odometry is rewarded for "trust odometry completely" — alphas
+//     that fail on a real robot),
+//   • the 2 m sensor range cap,
+//   • the same distance/Neff-gated correction schedule the robot runs.
+function _evalRollout(params) {
+  const testPF = new PF(field);
+  testPF.cfg   = { ...pf.cfg, ...params };
+  testPF.imuHeading = 0;
+  testPF.init(START);
+
+  const bot = { ...START };
+  let totalErr = 0, count = 0;
+  const DT = 0.04;  // 25 Hz — matches real hardware
+  const eSig = odomNoisePct * 0.01;
+  let dist = 0, tSince = 1e9, evConf = 0;
+
+  for (let step = 0; step < 200; step++) {
+    const t     = step * DT;
+    const phase = t % 7;
+    let df = 0, dh = 0;
+    if      (phase < 2.5) df = 10 * DT;
+    else if (phase < 3.5) dh = (PI / 2) * DT;
+    else if (phase < 6.0) df = 10 * DT;
+    else                  dh = (PI / 2) * DT;
+
+    const mid = bot.th + dh * 0.5;
+    bot.x += df * Math.sin(mid);
+    bot.y += df * Math.cos(mid);
+    bot.th = wrap(bot.th + dh);
+    // clamp to field
+    const lim = FIELD_H - ROBOT_H - 0.3;
+    bot.x = Math.max(-lim, Math.min(lim, bot.x));
+    bot.y = Math.max(-lim, Math.min(lim, bot.y));
+
+    // Sensor readings — noisy, range-capped; no dynamic obstacles during eval
+    const wR = field.expected(bot);
+    const m  = {};
+    for (const k of ['front','back','left','right']) {
+      const mm = wR[k] + sampleN(0, sensorNoise);
+      m[k] = mm > sensorMaxRange ? 9999 : Math.max(1, mm);
+    }
+
+    testPF.imuHeading = bot.th;
+    testPF.speedIps   = df / DT;
+    const dfMeas = df + sampleN(0, Math.abs(df) * eSig);   // what the encoder reports
+    if (dfMeas || dh) {
+      testPF.predict({ fwd: dfMeas, lat: 0, dth: dh });
+      dist += Math.abs(dfMeas);
+    }
+    tSince += DT;
+    if ((evConf < neffThreshold && tSince >= NEFF_RETRIGGER_S) || dist >= sensorUpdateDist) {
+      testPF.update(m);
+      evConf = testPF.collapsed ? 0 : testPF.neff();
+      testPF.resample();
+      dist = 0;
+      tSince = 0;
+    }
+
+    if (step > 50) {  // skip the first 2 s warmup
+      const e = testPF.best();
+      totalErr += Math.hypot(e.x - bot.x, e.y - bot.y);
+      count++;
+    }
+  }
+  return count > 0 ? totalErr / count : 999;
+}
+
+function _applyTunerParams(p) {
+  pf.cfg.sigHit = p.sigHit;
+  pf.cfg.inject = p.inject;
+  pf.cfg.a1 = p.a1; pf.cfg.a2 = p.a2;
+  pf.cfg.a3 = p.a3; pf.cfg.a4 = p.a4;
+  pf.cfg.occThr = p.occThr;
+
+  const setS = (id, v) => { document.getElementById(id).value = v; };
+  setS('sl-smodel', p.sigHit);
+  document.getElementById('vl-smodel').textContent = p.sigHit.toFixed(0) + ' mm';
+  setS('sl-inject',  p.inject * 100);
+  document.getElementById('vl-inject').textContent = (p.inject * 100).toFixed(1) + ' %';
+  setS('sl-arot',    p.a1 * 100);
+  document.getElementById('vl-arot').textContent   = (p.a1 * 100).toFixed(1) + ' %';
+  setS('sl-atrans',  p.a3 * 100);
+  document.getElementById('vl-atrans').textContent = (p.a3 * 100).toFixed(1) + ' %';
+  setS('sl-occ',     p.occThr);
+  document.getElementById('vl-occ').textContent    = p.occThr.toFixed(0) + ' mm';
+}
+
+// ═══════════════════════════════════════════════════════════
+// Mode toggle
+// ═══════════════════════════════════════════════════════════
+function setMode(m) {
+  mode = m;
+  document.getElementById('tb-mode-drive').classList.toggle('on', m === 'drive');
+  document.getElementById('tb-mode-auton').classList.toggle('on', m === 'auton');
+  document.getElementById('drive-panel').classList.toggle('hidden', m === 'auton');
+  document.getElementById('auton-panel').classList.toggle('hidden', m === 'drive');
+  if (m === 'drive') stopAuton();
+}
+
+// ═══════════════════════════════════════════════════════════
+// Cubic Hermite spline + path builder
+// Tangents come from the heading arrow at each waypoint, so
+// the curve arrives/leaves every point in the direction the
+// user actually set.
+// ═══════════════════════════════════════════════════════════
+function hermitePt(p0, m0, p1, m1, t) {
+  const t2 = t * t, t3 = t2 * t;
+  const h00 =  2*t3 - 3*t2 + 1;
+  const h10 =    t3 - 2*t2 + t;
+  const h01 = -2*t3 + 3*t2;
+  const h11 =    t3 -   t2;
+  return {
+    x: h00*p0.x + h10*m0.x + h01*p1.x + h11*m1.x,
+    y: h00*p0.y + h10*m0.y + h01*p1.y + h11*m1.y,
+  };
+}
+
+// heading in degrees CW from north → unit tangent vector in field coords
+// (+x east, +y north), scaled by segLen so the curve "pulls" proportionally.
+function headingTangent(thetaDeg, segLen) {
+  const r = thetaDeg * Math.PI / 180;
+  return { x: Math.sin(r) * segLen, y: Math.cos(r) * segLen };
+}
+
+function recomputeSpline() {
+  splinePath = []; splineArcs = []; totalPathLen = 0;
+  // Planned route = straight-line segments: autonStart → wp0 → wp1 → …
+  // (The actual robot path will differ due to heading correction arcs,
+  //  but this gives accurate waypoint-to-waypoint straight-line distances.)
+  if (waypoints.length < 1) { updateAutonUI(); return; }
+  const knots = [autonStart, ...waypoints];
+  for (let i = 0; i < knots.length; i++) {
+    splinePath.push({ x: knots[i].x, y: knots[i].y });
+    if (i > 0) {
+      const d = Math.hypot(knots[i].x - knots[i-1].x, knots[i].y - knots[i-1].y);
+      totalPathLen += d;
+    }
+    splineArcs.push(totalPathLen);
+  }
+  updateAutonUI();
+}
+
+function updateAutonUI() {
+  setText('sv-wp-count', waypoints.length);
+  setText('sv-path-len', totalPathLen > 0 ? totalPathLen.toFixed(1) + '"' : '–');
+}
+
+function clearPath() {
+  if (autopilotRunning) stopAuton();
+  waypoints = []; splinePath = []; splineArcs = []; totalPathLen = 0;
+  mtpCarrot = null; currentMoveIdx = -1;
+  selectWp(-1);
+  updateAutonUI();
+  setText('sv-auton-status', '–');
+  setText('sv-mtp-move', '–');
+  setText('sv-mtp-dist', '–');
+  setText('sv-mtp-spd',  '–');
+  setText('sv-mtp-time', '–');
+}
+
+function undoWaypoint() {
+  if (autopilotRunning) return;
+  if (selectedWpIdx === waypoints.length - 1) selectWp(-1);
+  waypoints.pop();
+  recomputeSpline();
+}
+
+function runAuton() {
+  if (waypoints.length < 1) { setText('sv-auton-status', 'Add at least 1 waypoint'); return; }
+  currentMoveIdx = 0;
+  moveStartMs    = performance.now();
+  mtpCarrot      = null;
+  turnProfile    = { idx: -1, sign: 1, total: 0, done: 0, vel: 0 };
+  // Teleport robot to the defined start pose
+  robot.x  = autonStart.x;
+  robot.y  = autonStart.y;
+  robot.th = autonStart.theta * (PI / 180);
+  vel.x = 0; vel.y = 0;
+  // Sync odom and particle filter to start pose
+  odomPose.x = robot.x; odomPose.y = robot.y; odomPose.th = robot.th;
+  pf.imuHeading = robot.th;
+  pf.init({ x: robot.x, y: robot.y, th: robot.th }, 0.3, 0.02);
+  trailT.length = 0; trailE.length = 0; trailO.length = 0; trailA.length = 0;
+  autopilotRunning = true;
+  setText('sv-auton-status', 'Move 1/' + waypoints.length);
+}
+
+function stopAuton() {
+  autopilotRunning = false;
+  vel.x = 0; vel.y = 0; mtpCarrot = null; currentMoveIdx = -1;
+  setText('sv-auton-status', 'Stopped');
+  setText('sv-mtp-move', '–');
+  setText('sv-mtp-dist', '–');
+  setText('sv-mtp-spd',  '–');
+  setText('sv-mtp-time', '–');
+}
+
+// ═══════════════════════════════════════════════════════════
+// moveToPose controller — mimics LemLib chassis.moveToPose()
+// Each waypoint has its own {maxSpeed, minSpeed, timeout,
+// earlyExitRange, forwards, lead} so simulation matches code.
+// Returns {dxw, dyw, dh} for the odom/PF sections.
+// ═══════════════════════════════════════════════════════════
+const MTP_KP_ANG     = 1.8;  // proportional steering gain, used ONLY for continuous carrot-chasing
+const MTP_DECEL_IN   = 20;   // inches from target where lateral deceleration begins
+const TURN_ACCEL_DPS2 = 720; // angular acceleration (deg/s²) for the no-feedback turn profile
+
+// ── Turn profile state ────────────────────────────────────────────────────
+// Explicit in-place turns (turnToHeading, and the final heading lock-in at
+// the end of a moveToPose) are driven by a kinematic accel/decel profile
+// instead of proportional feedback. The turn direction + total angle are
+// locked in once, the moment the turn starts — this is what actually fixes
+// the oscillation: a live proportional term recomputes wrap(error) every
+// frame, and right at a ±180° turn the wrapped error can flip sign between
+// frames (it's genuinely ambiguous which way is "shorter"), so the P term
+// reverses direction and the robot vibrates. Locking the sign once removes
+// that flip entirely, and the accel/decel ramp removes the overshoot a P
+// gain causes when error is still large but speed hasn't bled off yet.
+let turnProfile = { idx: -1, sign: 1, total: 0, done: 0, vel: 0 };
+
+// Drives a single-axis turn toward `targetThRad` using the locked profile
+// above. `maxOmegaDps` is the angular speed cap (deg/s) for this move.
+// Returns the angle to add to robot.th this frame, plus the omega used.
+function turnStep(targetThRad, maxOmegaDps, dt, relockRad = 2 * PI / 180) {
+  // Stall recovery: the profile integrates COMMANDED motion into `done`, so a
+  // blocked or bumped robot can exhaust it (done == total, vel → 0) while the
+  // live heading error is still large — the turn would silently give up and
+  // idle until timeout. Re-lock on the residual error instead. This keeps the
+  // anti-oscillation property: direction is still chosen once per lock, and by
+  // the time a profile is exhausted the residual is nowhere near ±180°.
+  if (turnProfile.idx === currentMoveIdx &&
+      turnProfile.total - turnProfile.done <= 1e-6 &&
+      Math.abs(wrap(targetThRad - robot.th)) > relockRad) {
+    turnProfile.idx = -3;   // forces the re-lock branch below
+  }
+  if (turnProfile.idx !== currentMoveIdx) {
+    const delta = wrap(targetThRad - robot.th);
+    turnProfile = { idx: currentMoveIdx, sign: delta < 0 ? -1 : 1, total: Math.abs(delta), done: 0, vel: 0 };
+  }
+  const remaining = Math.max(0, turnProfile.total - turnProfile.done);
+  const maxOmega  = maxOmegaDps * PI / 180;
+  const accel     = TURN_ACCEL_DPS2 * PI / 180;
+  const decelCap  = Math.sqrt(Math.max(0, 2 * accel * remaining));
+  const vel       = Math.max(0, Math.min(turnProfile.vel + accel * dt, maxOmega, decelCap));
+  const dh        = turnProfile.sign * Math.min(vel * dt, remaining);
+  turnProfile.done += Math.abs(dh);
+  turnProfile.vel   = vel;
+  return { dh, omega: turnProfile.sign * vel, remaining: remaining - Math.abs(dh) };
+}
+
+function moveToPoseStep(dt) {
+  if (currentMoveIdx < 0 || currentMoveIdx >= waypoints.length) {
+    stopAuton(); return { dxw: 0, dyw: 0, dh: 0 };
+  }
+
+  const wp      = waypoints[currentMoveIdx];
+  const wtype   = wp.type || 'moveToPose';
+  const elapsed = performance.now() - moveStartMs;
+  const tout    = wp.timeout !== undefined ? wp.timeout : 3000;
+
+  // ── turnToHeading: spin in place to desired heading ───────
+  if (wtype === 'turnToHeading') {
+    const finalAng = wp.theta * PI / 180;
+    const angErr   = wrap(finalAng - robot.th);
+    const headErrDeg = Math.abs(angErr) * (180 / PI);
+    const exitDeg  = Math.max(wp.earlyExitRange || 0, 1.0);   // earlyExitRange used as °
+    if (headErrDeg <= exitDeg || elapsed >= tout) {
+      return advanceMove(elapsed, 0, 0, 0);
+    }
+    const maxFrac     = (wp.maxSpeed !== undefined ? wp.maxSpeed : 80) / 127;
+    const maxOmegaDps = (2 * maxFrac * freeSpeed / driveTrackW) * (180 / PI);
+    const { dh, omega } = turnStep(finalAng, maxOmegaDps, dt, exitDeg * PI / 180);
+    robot.th = wrap(robot.th + dh);
+    vel.x = 0; vel.y = 0;
+    setText('sv-mtp-move', (currentMoveIdx + 1) + '/' + waypoints.length + ' [turn]');
+    setText('sv-mtp-dist', headErrDeg.toFixed(1) + '° remaining');
+    setText('sv-mtp-spd',  '0 "/s  ω:' + (omega * 180 / PI).toFixed(0) + '°/s');
+    setText('sv-mtp-time', elapsed.toFixed(0) + ' ms / ' + tout + ' ms');
+    return { dxw: 0, dyw: 0, dh };
+  }
+
+  // ── moveToPose / moveToPoint — LemLib-style boomerang controller ──
+  // The carrot sits *behind the target*, offset opposite to the target's own
+  // heading direction, scaled by remaining distance and `lead`. As the robot
+  // closes in, the carrot slides toward the target along the line the robot
+  // must already be approaching from — heading converges smoothly as a side
+  // effect of chasing the carrot, with no separate "settle" phase and no
+  // discontinuity for the controller to oscillate around.
+  const targetThRad = wp.theta * PI / 180;
+  const dxT        = wp.x - robot.x;
+  const dyT        = wp.y - robot.y;
+  const distTarget = Math.hypot(dxT, dyT);
+  const exitDist   = Math.max(wp.earlyExitRange || 0, 1.5);
+
+  if (distTarget <= exitDist || elapsed >= tout) {
+    return advanceMove(elapsed, 0, 0, 0);
+  }
+
+  const maxFrac  = (wp.maxSpeed !== undefined ? wp.maxSpeed : 100) / 127;
+  const minFrac  = (wp.minSpeed !== undefined ? wp.minSpeed : 0)   / 127;
+  const sign     = wp.forwards === false ? -1 : 1;
+  const lead     = wp.lead !== undefined ? wp.lead : 0.6;
+
+  // Inside this final stretch, hand the heading reference over from the
+  // carrot to the final heading directly — the boomerang offset shrinks to
+  // ~0 here and becomes numerically noisy (carrot ≈ robot), so we swap to a
+  // stable target instead of letting the direction degrade.
+  const NEAR_IN = 6;
+  const nearLock = wtype === 'moveToPose' && distTarget < NEAR_IN;
+  let desiredAng, refDist;
+  if (nearLock) {
+    desiredAng = targetThRad + (sign < 0 ? PI : 0);
+    refDist    = distTarget;
+    mtpCarrot  = { x: wp.x, y: wp.y };
+  } else {
+    let carrotX, carrotY;
+    if (wtype === 'moveToPose') {
+      carrotX = wp.x - Math.sin(targetThRad) * distTarget * lead;
+      carrotY = wp.y - Math.cos(targetThRad) * distTarget * lead;
+    } else {
+      carrotX = wp.x; carrotY = wp.y;
+    }
+    mtpCarrot = { x: carrotX, y: carrotY };
+    const cdx = carrotX - robot.x, cdy = carrotY - robot.y;
+    refDist    = Math.hypot(cdx, cdy);
+    desiredAng = Math.atan2(cdx, cdy) + (sign < 0 ? PI : 0);
+  }
+
+  const angError = wrap(desiredAng - robot.th);
+
+  // ── Lateral speed scaled by alignment (cos of heading error) ──
+  // = 1 when facing the carrot, 0 at 90°, clamped at 0 beyond that so the
+  // robot doesn't creep backward into the target while still turning to it.
+  const alignedErr = Math.max(0, refDist * Math.cos(angError));
+  const rawLat      = Math.min(alignedErr / MTP_DECEL_IN, 1.0) * maxFrac;
+  let   latFrac     = rawLat;
+  if (distTarget > exitDist * 2) latFrac = Math.max(minFrac, latFrac);
+  latFrac *= sign;
+
+  // ── Angular fraction ──────────────────────────────────────
+  // Final heading lock-in uses the no-feedback turn profile (see turnStep);
+  // the earlier carrot-chasing phase still needs continuous proportional
+  // steering since its target (the carrot) keeps moving every frame.
+  let angFrac;
+  if (nearLock) {
+    const maxOmegaDps = (2 * maxFrac * freeSpeed / driveTrackW) * (180 / PI);
+    const { omega }   = turnStep(desiredAng, maxOmegaDps, dt);
+    angFrac = Math.max(-maxFrac, Math.min(maxFrac, omega * driveTrackW / (2 * freeSpeed)));
+  } else {
+    angFrac = Math.max(-maxFrac, Math.min(maxFrac, MTP_KP_ANG * angError / PI));
+  }
+
+  // ── Differential drive motor mixing ──────────────────────
+  // leftMotor and rightMotor in [-1, 1] fraction of freeSpeed.
+  // When turning hard, forward speed is automatically reduced (realistic coupling).
+  const leftFrac  = Math.max(-1, Math.min(1, latFrac - angFrac));
+  const rightFrac = Math.max(-1, Math.min(1, latFrac + angFrac));
+  const vF        = (leftFrac + rightFrac) / 2 * freeSpeed;
+  const omega     = (rightFrac - leftFrac) / driveTrackW * freeSpeed;
+
+  const dh = omega * dt;
+  robot.th  = wrap(robot.th + dh);
+  vel.x = vF * Math.sin(robot.th);
+  vel.y = vF * Math.cos(robot.th);
+  const dxw = vel.x * dt;
+  const dyw = vel.y * dt;
+  robot.x += dxw;
+  robot.y += dyw;
+
+  const headErr = wrap((wp.theta * PI / 180) - robot.th) * (180 / PI);
+  const lbl     = wtype === 'moveToPoint' ? ' [pt]' : '';
+  setText('sv-mtp-move', (currentMoveIdx + 1) + '/' + waypoints.length + lbl);
+  setText('sv-mtp-dist', distTarget.toFixed(1) + '"  hErr:' + headErr.toFixed(0) + '°');
+  setText('sv-mtp-spd',  Math.abs(vF).toFixed(1) + ' "/s');
+  setText('sv-mtp-time', elapsed.toFixed(0) + ' ms / ' + tout + ' ms');
+  return { dxw, dyw, dh };
+}
+
+// Advance to the next move (or finish). Returns a zero-delta result.
+function advanceMove(elapsed, dxw, dyw, dh) {
+  const prevWp = waypoints[currentMoveIdx];
+  currentMoveIdx++;
+  if (currentMoveIdx >= waypoints.length) {
+    vel.x = 0; vel.y = 0; mtpCarrot = null;
+    autopilotRunning = false;
+    const errDist = prevWp ? Math.hypot(robot.x - prevWp.x, robot.y - prevWp.y) : 0;
+    const errHead = prevWp ? Math.abs(wrap((prevWp.theta * PI / 180) - robot.th)) * (180 / PI) : 0;
+    setText('sv-auton-status', 'Done ✓');
+    setText('sv-mtp-move', waypoints.length + '/' + waypoints.length);
+    setText('sv-mtp-dist', '⊕ pos err: ' + errDist.toFixed(1) + '"  head: ' + errHead.toFixed(1) + '°');
+    setText('sv-mtp-spd',  '0 "/s');
+    setText('sv-mtp-time', elapsed.toFixed(0) + ' ms total');
+  } else {
+    moveStartMs = performance.now();
+    setText('sv-auton-status', 'Move ' + (currentMoveIdx + 1) + '/' + waypoints.length);
+  }
+  return { dxw, dyw, dh };
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// Draw auton path overlay
+// ═══════════════════════════════════════════════════════════
+// Draw a heading arrow with a draggable grip dot at the tip.
+// len defaults to ARROW_PX so the hit-test and visual always match.
+function drawHeadingArrow(px, py, thetaDeg, color, len) {
+  if (len === undefined) len = ARROW_PX;
+  const r   = thetaDeg * PI / 180;
+  const adx = Math.sin(r), ady = -Math.cos(r); // canvas (Y-down)
+  const tx  = px + adx * len, ty = py + ady * len;
+  // Shaft
+  ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(tx, ty);
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.stroke();
+  // Arrowhead triangle
+  const hw = 4;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(tx - adx*7 + ady*hw, ty - ady*7 - adx*hw);
+  ctx.lineTo(tx - adx*7 - ady*hw, ty - ady*7 + adx*hw);
+  ctx.closePath();
+  ctx.fillStyle = color; ctx.fill();
+  // Grip handle dot — visually indicates the tip is draggable
+  ctx.beginPath(); ctx.arc(tx, ty, 4, 0, TWO_PI);
+  ctx.fillStyle = color; ctx.fill();
+  ctx.strokeStyle = FIELD_THEME[simTheme].gripOutline; ctx.lineWidth = 1.2; ctx.stroke();
+}
+
+function drawAutonPath() {
+  // Always draw start marker in auton mode (even with no waypoints yet)
+  {
+    const [sx, sy] = tc(autonStart.x, autonStart.y);
+    const isSel    = selectedWpIdx === -2;
+    // Selection ring
+    if (isSel) {
+      ctx.beginPath(); ctx.arc(sx, sy, 12, 0, TWO_PI);
+      ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+      ctx.setLineDash([3, 2]); ctx.stroke(); ctx.setLineDash([]);
+    }
+    // Square marker
+    const hs = 7;
+    ctx.save(); ctx.translate(sx, sy); ctx.rotate(autonStart.theta * PI / 180);
+    ctx.strokeStyle = isSel ? '#fbbf24' : '#60a5fa'; ctx.lineWidth = isSel ? 2.5 : 1.5;
+    ctx.setLineDash([]); ctx.strokeRect(-hs, -hs, hs*2, hs*2);
+    ctx.restore();
+    // Heading arrow (grip lets user drag to rotate)
+    drawHeadingArrow(sx, sy, autonStart.theta, isSel ? '#fbbf24' : '#60a5fa');
+    // "S" label
+    ctx.fillStyle = isSel ? '#fbbf24' : '#60a5fa';
+    ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('S', sx, sy + 3);
+  }
+
+  if (waypoints.length === 0) return;
+
+  // Planned route: dashed straight lines autonStart → wp0 → wp1 → …
+  // (The actual robot path shown by the trail will differ from this.)
+  if (splinePath.length > 1) {
+    ctx.beginPath();
+    const [sx0, sy0] = tc(splinePath[0].x, splinePath[0].y);
+    ctx.moveTo(sx0, sy0);
+    for (let i = 1; i < splinePath.length; i++) {
+      const [px, py] = tc(splinePath[i].x, splinePath[i].y);
+      ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = 'rgba(34,197,94,0.55)';
+    ctx.lineWidth = 1.5; ctx.setLineDash([6, 5]); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Waypoints: selection ring → dot → heading arrow → number label
+  ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  for (let i = 0; i < waypoints.length; i++) {
+    const wp      = waypoints[i];
+    const [px, py] = tc(wp.x, wp.y);
+    const isSel   = selectedWpIdx === i;
+    const isFirst = i === 0, isLast = i === waypoints.length - 1;
+    const dotColor = isFirst ? '#22c55e' : isLast ? '#ef4444' : '#fbbf24';
+
+    // Selection ring
+    if (isSel) {
+      ctx.beginPath(); ctx.arc(px, py, 10, 0, TWO_PI);
+      ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+      ctx.setLineDash([3, 2]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // Dot
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, TWO_PI);
+    ctx.fillStyle = dotColor; ctx.fill();
+    ctx.strokeStyle = FIELD_THEME[simTheme].wpOutline; ctx.lineWidth = 1; ctx.stroke();
+
+    // Heading arrow (grip dot at tip — drag it to rotate)
+    drawHeadingArrow(px, py, wp.theta, isSel ? '#fbbf24' : FIELD_THEME[simTheme].wpArrowDefault);
+
+    // Number label
+    ctx.fillStyle = FIELD_THEME[simTheme].wpLabel;
+    ctx.fillText(i + 1, px, py - 11);
+  }
+
+  // Carrot point + line to target while running
+  if (autopilotRunning && currentMoveIdx >= 0 && currentMoveIdx < waypoints.length) {
+    const tgt = waypoints[currentMoveIdx];
+    const [rx, ry] = tc(robot.x, robot.y);
+    const [tx, ty] = tc(tgt.x, tgt.y);
+
+    // Dashed line: robot → target
+    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(tx, ty);
+    ctx.strokeStyle = 'rgba(251,191,36,0.5)'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]); ctx.stroke(); ctx.setLineDash([]);
+
+    // Target ring
+    ctx.beginPath(); ctx.arc(tx, ty, 8, 0, TWO_PI);
+    ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    // Carrot dot (where the robot is actually steering toward)
+    if (mtpCarrot) {
+      const [cx, cy] = tc(mtpCarrot.x, mtpCarrot.y);
+      ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(cx, cy);
+      ctx.strokeStyle = 'rgba(34,197,94,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, TWO_PI);
+      ctx.fillStyle = '#22c55e'; ctx.fill();
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Export path as LemLib C++ code
+// ═══════════════════════════════════════════════════════════
+function exportLemLibCode() {
+  if (waypoints.length < 1) { alert('Add at least 1 waypoint first.'); return; }
+  const now = new Date().toLocaleDateString();
+  let code = '// Generated by VEX Override AMCL Simulator — ' + now + '\n';
+  code += '// Coords: centre-field origin, +x right, +y north, heading CW from north (°)\n\n';
+
+  code += '// Place robot at start pose before autonomous\n';
+  code += 'chassis.setPose(' + autonStart.x.toFixed(2) + ', ' +
+          autonStart.y.toFixed(2) + ', ' + autonStart.theta.toFixed(1) + ');\n\n';
+
+  code += '// --- Motion calls (params set per-waypoint in simulator) ---\n';
+  for (let i = 0; i < waypoints.length; i++) {
+    const w      = waypoints[i];
+    const wtype  = w.type || 'moveToPose';
+    const maxSpd = w.maxSpeed  !== undefined ? w.maxSpeed  : 100;
+    const minSpd = w.minSpeed  !== undefined ? w.minSpeed  : 0;
+    const tout   = w.timeout   !== undefined ? w.timeout   : 3000;
+    const exit   = w.earlyExitRange !== undefined ? w.earlyExitRange : 0;
+    const lead   = w.lead      !== undefined ? w.lead      : 0.6;
+    const fwd    = w.forwards  !== false;
+
+    if (wtype === 'turnToHeading') {
+      const opts = ['.maxSpeed = ' + maxSpd];
+      if (minSpd > 0) opts.push('.minSpeed = ' + minSpd);
+      code += 'chassis.turnToHeading(' + w.theta.toFixed(1) + ', ' + tout +
+              ', {' + opts.join(', ') + '});\n';
+    } else if (wtype === 'moveToPoint') {
+      const opts = ['.forwards = ' + (fwd ? 'true' : 'false'), '.maxSpeed = ' + maxSpd];
+      if (minSpd > 0) opts.push('.minSpeed = ' + minSpd);
+      if (exit  > 0)  opts.push('.earlyExitRange = ' + exit.toFixed(1));
+      code += 'chassis.moveToPoint(' + w.x.toFixed(2) + ', ' + w.y.toFixed(2) + ', ' +
+              tout + ', {' + opts.join(', ') + '});\n';
+    } else {
+      // moveToPose (default)
+      const opts = ['.forwards = ' + (fwd ? 'true' : 'false'), '.maxSpeed = ' + maxSpd];
+      if (minSpd > 0) opts.push('.minSpeed = ' + minSpd);
+      if (exit  > 0)  opts.push('.earlyExitRange = ' + exit.toFixed(1));
+      if (Math.abs(lead - 0.6) > 0.01) opts.push('.lead = ' + lead.toFixed(2));
+      code += 'chassis.moveToPose(' + w.x.toFixed(2) + ', ' + w.y.toFixed(2) + ', ' +
+              w.theta.toFixed(1) + ', ' + tout + ', {' + opts.join(', ') + '});\n';
+    }
+  }
+  navigator.clipboard.writeText(code).then(() => {
+    const btn = document.querySelector('#auton-panel .btn.success');
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied to clipboard!';
+    setTimeout(() => { btn.textContent = orig; }, 2200);
+  }).catch(() => { alert(code); });
+}
+
+// ═══════════════════════════════════════════════════════════
+// Waypoint / start pose editing helpers
+// ═══════════════════════════════════════════════════════════
+
+// Compute an initial heading for a newly placed waypoint (direction from previous).
+function computeAutoTheta(fx, fy) {
+  if (waypoints.length === 0) return 0; // no previous → face north
+  const prev = waypoints[waypoints.length - 1];
+  return Math.atan2(fx - prev.x, fy - prev.y) * (180 / PI);
+}
+
+// Select a waypoint for editing (-1=none, -2=start, ≥0=index).
+function selectWp(idx) {
+  selectedWpIdx = idx;
+  const card = document.getElementById('wp-edit-card');
+  if (idx === -1) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  let lbl, x, y, theta, canDelete;
+  if (idx === -2) {
+    lbl = 'Start Pose'; x = autonStart.x; y = autonStart.y;
+    theta = autonStart.theta; canDelete = false;
+  } else {
+    const wp = waypoints[idx];
+    lbl = 'Waypoint ' + (idx + 1); x = wp.x; y = wp.y;
+    theta = wp.theta; canDelete = true;
+  }
+  document.getElementById('sv-wp-edit-lbl').textContent = lbl;
+  document.getElementById('in-wp-x').value  = x.toFixed(1);
+  document.getElementById('in-wp-y').value  = y.toFixed(1);
+  const tClamped = Math.max(-180, Math.min(180, theta));
+  document.getElementById('sl-wp-theta').value = tClamped;
+  document.getElementById('vl-wp-theta').textContent = Math.round(theta) + '°';
+  document.getElementById('btn-delete-wp').style.display = canDelete ? '' : 'none';
+
+  // Show type selector + moveToPose params only for real waypoints (not start)
+  const typeRow = document.getElementById('wp-type-row');
+  const mtpDiv  = document.getElementById('mtp-params');
+  if (idx >= 0 && idx < waypoints.length) {
+    typeRow.style.display = '';
+    const wp = waypoints[idx];
+    document.getElementById('sel-wp-type').value = wp.type || 'moveToPose';
+    // Hide XY and moveToPose lead/fwd for turnToHeading (only angle matters)
+    const isTurn = (wp.type || 'moveToPose') === 'turnToHeading';
+    document.querySelector('#wp-edit-card .ctrl-row').style.display = isTurn ? 'none' : '';
+    mtpDiv.style.display = '';
+    const maxSpd = wp.maxSpeed !== undefined ? wp.maxSpeed : 100;
+    const minSpd = wp.minSpeed !== undefined ? wp.minSpeed : 0;
+    const tout   = wp.timeout  !== undefined ? wp.timeout  : 3000;
+    const exit   = wp.earlyExitRange !== undefined ? wp.earlyExitRange : 0;
+    const leadV  = wp.lead     !== undefined ? wp.lead     : 0.6;
+    const fwd    = wp.forwards !== false;
+    document.getElementById('sl-mtp-maxspd').value = maxSpd;
+    document.getElementById('vl-mtp-maxspd').textContent = maxSpd;
+    document.getElementById('sl-mtp-minspd').value = minSpd;
+    document.getElementById('vl-mtp-minspd').textContent = minSpd;
+    document.getElementById('in-mtp-timeout').value = tout;
+    document.getElementById('in-mtp-exit').value    = exit;
+    document.getElementById('sl-mtp-lead').value    = Math.round(leadV * 100);
+    document.getElementById('vl-mtp-lead').textContent = leadV.toFixed(2);
+    document.getElementById('cb-mtp-fwd').checked   = fwd;
+    document.getElementById('vl-mtp-fwd').textContent = fwd ? 'Forwards' : 'Backwards';
+  } else {
+    typeRow.style.display = 'none';
+    mtpDiv.style.display  = 'none';
+  }
+}
+
+// Refresh edit-card fields after a drag repositions the selected waypoint.
+function updateWpEditUI() {
+  if (selectedWpIdx < 0 || selectedWpIdx >= waypoints.length) return;
+  const wp = waypoints[selectedWpIdx];
+  document.getElementById('in-wp-x').value = wp.x.toFixed(1);
+  document.getElementById('in-wp-y').value = wp.y.toFixed(1);
+}
+
+// Called when user types into start-pose X/Y/heading inputs.
+function onStartInput() {
+  const x = parseFloat(document.getElementById('in-start-x').value);
+  const y = parseFloat(document.getElementById('in-start-y').value);
+  const t = parseFloat(document.getElementById('sl-start-theta').value);
+  const lim = FIELD_H - ROBOT_H - 0.3;
+  if (!isNaN(x)) autonStart.x = Math.max(-lim, Math.min(lim, x));
+  if (!isNaN(y)) autonStart.y = Math.max(-lim, Math.min(lim, y));
+  if (!isNaN(t)) autonStart.theta = t;
+  document.getElementById('vl-start-theta').textContent = Math.round(autonStart.theta) + '°';
+  // Keep edit card in sync if start is selected
+  if (selectedWpIdx === -2) {
+    document.getElementById('in-wp-x').value  = autonStart.x.toFixed(1);
+    document.getElementById('in-wp-y').value  = autonStart.y.toFixed(1);
+    document.getElementById('sl-wp-theta').value = autonStart.theta;
+    document.getElementById('vl-wp-theta').textContent = Math.round(autonStart.theta) + '°';
+  }
+}
+
+// Snap start pose to current robot position & heading.
+function setStartToRobot() {
+  autonStart.x     = robot.x;
+  autonStart.y     = robot.y;
+  autonStart.theta = robot.th * (180 / PI);
+  const td = Math.round(autonStart.theta);
+  document.getElementById('in-start-x').value   = robot.x.toFixed(1);
+  document.getElementById('in-start-y').value   = robot.y.toFixed(1);
+  document.getElementById('sl-start-theta').value = Math.max(-180, Math.min(180, td));
+  document.getElementById('vl-start-theta').textContent = td + '°';
+  if (selectedWpIdx === -2) selectWp(-2); // refresh edit card
+}
+
+// Called when user edits X, Y, or heading in the selected-waypoint card.
+function onWpEditInput() {
+  const x = parseFloat(document.getElementById('in-wp-x').value);
+  const y = parseFloat(document.getElementById('in-wp-y').value);
+  const t = parseFloat(document.getElementById('sl-wp-theta').value);
+  document.getElementById('vl-wp-theta').textContent = (isNaN(t) ? 0 : Math.round(t)) + '°';
+  const lim = FIELD_H - ROBOT_H - 0.3;
+  if (selectedWpIdx === -2) {
+    if (!isNaN(x)) autonStart.x = Math.max(-lim, Math.min(lim, x));
+    if (!isNaN(y)) autonStart.y = Math.max(-lim, Math.min(lim, y));
+    if (!isNaN(t)) autonStart.theta = t;
+    // Mirror back to start-pose card
+    document.getElementById('in-start-x').value = autonStart.x.toFixed(1);
+    document.getElementById('in-start-y').value = autonStart.y.toFixed(1);
+    document.getElementById('sl-start-theta').value = autonStart.theta;
+    document.getElementById('vl-start-theta').textContent = Math.round(autonStart.theta) + '°';
+  } else if (selectedWpIdx >= 0 && selectedWpIdx < waypoints.length) {
+    const wp = waypoints[selectedWpIdx];
+    if (!isNaN(x)) wp.x = Math.max(-lim, Math.min(lim, x));
+    if (!isNaN(y)) wp.y = Math.max(-lim, Math.min(lim, y));
+    if (!isNaN(t)) wp.theta = t;
+    recomputeSpline();
+  }
+}
+
+// Called when the move-type dropdown changes.
+function onWpTypeChange() {
+  if (selectedWpIdx < 0 || selectedWpIdx >= waypoints.length) return;
+  const wp   = waypoints[selectedWpIdx];
+  wp.type    = document.getElementById('sel-wp-type').value;
+  // Toggle X/Y row visibility (turnToHeading doesn't need a target position)
+  const isTurn = wp.type === 'turnToHeading';
+  document.querySelector('#wp-edit-card .ctrl-row').style.display = isTurn ? 'none' : '';
+  recomputeSpline();
+}
+
+// Called when any moveToPose param slider/input changes.
+function onMtpInput() {
+  if (selectedWpIdx < 0 || selectedWpIdx >= waypoints.length) return;
+  const wp      = waypoints[selectedWpIdx];
+  const maxSpd  = parseInt(document.getElementById('sl-mtp-maxspd').value);
+  const minSpd  = parseInt(document.getElementById('sl-mtp-minspd').value);
+  const tout    = parseInt(document.getElementById('in-mtp-timeout').value);
+  const exit    = parseFloat(document.getElementById('in-mtp-exit').value);
+  const leadPct = parseInt(document.getElementById('sl-mtp-lead').value);
+  const fwd     = document.getElementById('cb-mtp-fwd').checked;
+
+  wp.maxSpeed       = isNaN(maxSpd) ? 100  : Math.max(10, Math.min(127, maxSpd));
+  wp.minSpeed       = isNaN(minSpd) ? 0    : Math.max(0,  Math.min(80,  minSpd));
+  wp.timeout        = isNaN(tout)   ? 3000 : Math.max(100, tout);
+  wp.earlyExitRange = isNaN(exit)   ? 0    : Math.max(0, exit);
+  wp.lead           = isNaN(leadPct)? 0.6  : leadPct / 100;
+  wp.forwards       = fwd;
+
+  document.getElementById('vl-mtp-maxspd').textContent = wp.maxSpeed;
+  document.getElementById('vl-mtp-minspd').textContent = wp.minSpeed;
+  document.getElementById('vl-mtp-lead').textContent   = wp.lead.toFixed(2);
+  document.getElementById('vl-mtp-fwd').textContent    = fwd ? 'Forwards' : 'Backwards';
+}
+
+// Delete the currently selected waypoint.
+function deleteSelectedWp() {
+  if (selectedWpIdx < 0 || autopilotRunning) return;
+  waypoints.splice(selectedWpIdx, 1);
+  recomputeSpline();
+  selectWp(-1);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Layer toggle — used by auton panel (syncs both button sets)
+// ═══════════════════════════════════════════════════════════
+function toggleLayerA(name) {
+  layers[name] = !layers[name];
+  const el1 = document.getElementById('tb-' + name);
+  const el2 = document.getElementById('tb-a-' + name);
+  if (el1) el1.classList.toggle('on', layers[name]);
+  if (el2) el2.classList.toggle('on', layers[name]);
+}
+
+// ═══════════════════════════════════════════════════════════
+// Boot — start in kidnap state so convergence is immediately visible
+// ═══════════════════════════════════════════════════════════
+odomPose = { ...START };   // set after START is declared
+pf.imuHeading = START.th;
+kidnap();   // scatter particles across field; drive the robot to watch convergence
+
+// Populate stats panel immediately so it never shows "–"
+{
+  const R2D = 180 / PI;
+  const initR = field.expected(robot);
+  setText('sv-tx', robot.x.toFixed(1) + '"');
+  setText('sv-ty', robot.y.toFixed(1) + '"');
+  setText('sv-th', (robot.th * R2D).toFixed(1) + '°');
+  // est starts at {0,0,0}; particle filter hasn't run yet
+  setText('sv-ex', est.x.toFixed(1) + '"');
+  setText('sv-ey', est.y.toFixed(1) + '"');
+  setText('sv-eh', (est.th * R2D).toFixed(1) + '°');
+  setText('sv-neff', '0.000');
+  setText('sv-sact', 'idle');
+  setText('sv-sdist', '0.0"/8"');
+  setText('sv-tune', 'Press Auto Tune to optimise');
+  setText('sv-ox', odomPose.x.toFixed(1) + '"');
+  setText('sv-oy', odomPose.y.toFixed(1) + '"');
+  setText('sv-oh', (odomPose.th * R2D).toFixed(1) + '°');
+  setText('sv-oerr', '0.00"');
+  setText('sv-encf',  '0.0°');
+  setText('sv-encfd', '+0.00°');
+  setText('sv-encl',  '0.0°');
+  setText('sv-encld', '+0.00°');
+  setText('sv-sf', initR.front.toFixed(0));
+  setText('sv-sb', initR.back.toFixed(0));
+  setText('sv-sl', initR.left.toFixed(0));
+  setText('sv-sr', initR.right.toFixed(0));
+}
+
+// Sync every tuneable from its default slider value (top speed, freeSpeed,
+// filter cfg, physics) before the first frame.
+onSlider();
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
